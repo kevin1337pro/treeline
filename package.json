@@ -1,0 +1,21 @@
+{
+  "name": "treeline",
+  "version": "1.0.0",
+  "description": "Statische Demo-App fuer Baumverwaltung und Einsatzplanung.",
+  "private": true,
+  "scripts": {
+    "dev": "serve . -l 4173",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "treeline",
+    "react",
+    "leaflet",
+    "static-app"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "serve": "^14.2.6"
+  }
+}
