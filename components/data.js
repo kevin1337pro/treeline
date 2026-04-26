@@ -1,51 +1,51 @@
 // Treeline – Mock Data
-window.MOCK_DATA = {
+const TREELINE_SEED_DATA = {
   currentUser: {
     id: "user-001", name: "Markus Enbergs", email: "m.enbergs@enbergs.de",
     role: "admin", initials: "ME",
   },
 
   trees: [
-    { id:"TRE-2024-001", name:"Stieleiche", species:"Quercus robur", lat:51.7601, lng:14.3329,
+    { id:"TRE-2024-001", name:"Stieleiche", species:"Quercus robur", lat:51.59683, lng:6.99559,
       status:"gut", height:18.5, trunkDiam:42, crownDiam:12, age:85, certified:true,
       certDate:"2024-03-15", certifier:"Dr. Klaus Weber", vta:"VTA Stufe 2",
-      standort:"Hauptstraße 12, Cottbus", tags:["Naturdenkmal","Monitoring"],
-      notes:"Leichte Kronenverlichtung im Osten. Vitalitätsstufe 2.", owner:"Stadtverwaltung Cottbus",
+      standort:"Buerelterstraße 27, 45896 Gelsenkirchen", tags:["Naturdenkmal","Monitoring"],
+      notes:"Leichte Kronenverlichtung im Osten. Vitalitätsstufe 2.", owner:"Stadt Gelsenkirchen",
       assignedTo:"user-002", measuresIds:["MAU-001","MAU-003"], images:[], createdAt:"2024-01-10" },
-    { id:"TRE-2024-002", name:"Rotbuche", species:"Fagus sylvatica", lat:51.7578, lng:14.3298,
+    { id:"TRE-2024-002", name:"Rotbuche", species:"Fagus sylvatica", lat:51.59802, lng:6.99372,
       status:"mittel", height:22.0, trunkDiam:61, crownDiam:16, age:120, certified:true,
       certDate:"2024-02-20", certifier:"Dr. Klaus Weber", vta:"VTA Stufe 3",
-      standort:"Parkweg 4, Cottbus", tags:["Schutzbedarf"],
+      standort:"Buerelterstraße 34, 45896 Gelsenkirchen", tags:["Schutzbedarf"],
       notes:"Pilzbefall am Stammfuß. Eingehende Kontrolle empfohlen.", owner:"Landesforst Brandenburg",
       assignedTo:"user-003", measuresIds:["MAU-002"], images:[], createdAt:"2024-01-15" },
-    { id:"TRE-2024-003", name:"Gemeine Kiefer", species:"Pinus sylvestris", lat:51.7550, lng:14.3370,
+    { id:"TRE-2024-003", name:"Gemeine Kiefer", species:"Pinus sylvestris", lat:51.59572, lng:6.99821,
       status:"kritisch", height:14.0, trunkDiam:28, crownDiam:6, age:45, certified:false,
       certDate:null, certifier:null, vta:"Ausstehend",
-      standort:"Industrieweg 8, Cottbus", tags:["Fällkandidat","EPS-Befall"],
+      standort:"Buerelterstraße 21, 45896 Gelsenkirchen", tags:["Fällkandidat","EPS-Befall"],
       notes:"Starker Eichenprozessionsspinner-Befall. Sofortmaßnahme erforderlich.", owner:"Privat",
       assignedTo:"user-002", measuresIds:["MAU-004"], images:[], createdAt:"2024-02-01" },
-    { id:"TRE-2024-004", name:"Silberpappel", species:"Populus alba", lat:51.7620, lng:14.3350,
+    { id:"TRE-2024-004", name:"Silberpappel", species:"Populus alba", lat:51.59917, lng:6.99795,
       status:"schlecht", height:25.0, trunkDiam:78, crownDiam:18, age:65, certified:true,
       certDate:"2024-01-08", certifier:"Anna Schneider", vta:"VTA Stufe 4",
-      standort:"Am Fluss 2, Cottbus", tags:["Totholz","Fällkandidat"],
-      notes:"Starke Höhlenbildung, Totholzanteil > 30%. Fällung geplant.", owner:"Stadtverwaltung Cottbus",
+      standort:"Buerelterstraße 125, 45896 Gelsenkirchen", tags:["Totholz","Fällkandidat"],
+      notes:"Starke Höhlenbildung, Totholzanteil > 30%. Fällung geplant.", owner:"Stadt Gelsenkirchen",
       assignedTo:"user-004", measuresIds:["MAU-005","MAU-006"], images:[], createdAt:"2024-01-20" },
-    { id:"TRE-2024-005", name:"Spitzahorn", species:"Acer platanoides", lat:51.7555, lng:14.3310,
+    { id:"TRE-2024-005", name:"Spitzahorn", species:"Acer platanoides", lat:51.59614, lng:6.99283,
       status:"gut", height:11.5, trunkDiam:22, crownDiam:9, age:30, certified:true,
       certDate:"2024-03-20", certifier:"Anna Schneider", vta:"VTA Stufe 1",
-      standort:"Schulstraße 5, Cottbus", tags:["Neupflanzung"],
-      notes:"Junger, vitaler Baum. Formschnitt empfohlen.", owner:"Schule Cottbus",
+      standort:"Schwedenstraße 5, 45896 Gelsenkirchen", tags:["Neupflanzung"],
+      notes:"Junger, vitaler Baum. Formschnitt empfohlen.", owner:"Schule Gelsenkirchen",
       assignedTo:"user-002", measuresIds:[], images:[], createdAt:"2024-03-01" },
-    { id:"TRE-2024-006", name:"Hainbuche", species:"Carpinus betulus", lat:51.7588, lng:14.3280,
+    { id:"TRE-2024-006", name:"Hainbuche", species:"Carpinus betulus", lat:51.60012, lng:6.99451,
       status:"gut", height:9.0, trunkDiam:18, crownDiam:7, age:25, certified:false,
       certDate:null, certifier:null, vta:"Ausstehend",
-      standort:"Gartenweg 11, Cottbus", tags:[],
+      standort:"Oberscholvener Straße 11, 45896 Gelsenkirchen", tags:[],
       notes:"Zertifizierung ausstehend.", owner:"Privat",
       assignedTo:null, measuresIds:[], images:[], createdAt:"2024-03-10" },
-    { id:"TRE-2024-007", name:"Traubenkirsche", species:"Prunus padus", lat:51.7535, lng:14.3340,
+    { id:"TRE-2024-007", name:"Traubenkirsche", species:"Prunus padus", lat:51.59459, lng:6.99674,
       status:"mittel", height:8.5, trunkDiam:15, crownDiam:6, age:20, certified:true,
       certDate:"2024-04-01", certifier:"Dr. Klaus Weber", vta:"VTA Stufe 2",
-      standort:"Waldrand Süd, Cottbus", tags:["Drohnen-Aufnahme"],
+      standort:"Waldrand Scholven, 45896 Gelsenkirchen", tags:["Drohnen-Aufnahme"],
       notes:"Drohnenaufnahme ausstehend für Kronenkontrolle.", owner:"Landesforst Brandenburg",
       assignedTo:"user-003", measuresIds:[], images:[], createdAt:"2024-04-01" },
   ],
@@ -83,7 +83,7 @@ window.MOCK_DATA = {
     { id:"user-003", name:"Anna Schneider", email:"a.schneider@enbergs.de", role:"certifier", initials:"AS", team:"Gutachten" },
     { id:"user-004", name:"Stefan Wolf", email:"s.wolf@enbergs.de", role:"team", initials:"SW", team:"Außendienst" },
     { id:"user-005", name:"Klaus Weber", email:"k.weber@enbergs.de", role:"certifier", initials:"KW", team:"Gutachten" },
-    { id:"user-006", name:"Gemeinde Cottbus", email:"kontakt@cottbus.de", role:"client", initials:"GC", team:"Auftraggeber" },
+    { id:"user-006", name:"Stadt Gelsenkirchen", email:"kontakt@gelsenkirchen.de", role:"client", initials:"GE", team:"Auftraggeber" },
   ],
 
   roleLabels: {
@@ -105,5 +105,39 @@ window.MOCK_DATA = {
 
   statusColors: {
     gut:"#2E7D52", mittel:"#E6A817", schlecht:"#D84315", kritisch:"#B71C1C",
+  },
+};
+
+const TREELINE_DB_VERSION = 3;
+
+function initializeTreelineDatabase() {
+  const storageKey = "treeline_database";
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    if (saved?.version === TREELINE_DB_VERSION && saved?.data?.trees?.length) {
+      return saved.data;
+    }
+  } catch (e) {
+    console.warn("Treeline database reset: stored data was invalid.", e);
+  }
+
+  const data = JSON.parse(JSON.stringify(TREELINE_SEED_DATA));
+  localStorage.setItem(storageKey, JSON.stringify({ version: TREELINE_DB_VERSION, data }));
+  return data;
+}
+
+window.MOCK_DATA = initializeTreelineDatabase();
+window.TREELINE_DB = {
+  save() {
+    localStorage.setItem("treeline_database", JSON.stringify({ version: TREELINE_DB_VERSION, data: window.MOCK_DATA }));
+  },
+  async saveTree(tree) {
+    if (!window.TREELINE_APPWRITE) return null;
+    return window.TREELINE_APPWRITE.saveTree(tree);
+  },
+  reset() {
+    localStorage.removeItem("treeline_database");
+    window.MOCK_DATA = initializeTreelineDatabase();
+    return window.MOCK_DATA;
   },
 };

@@ -11,7 +11,7 @@ function Login({ onLogin }) {
       color:"#1565A0", desc:"Bäume & Maßnahmen" },
     { role:"certifier", name:"Anna Schneider",    email:"a.schneider@enbergs.de",  initials:"AS", team:"Gutachten",
       color:"#6D4C41", desc:"Zertifizierung" },
-    { role:"client",    name:"Gemeinde Cottbus",  email:"kontakt@cottbus.de",      initials:"GC", team:"Auftraggeber",
+    { role:"client",    name:"Stadt Gelsenkirchen", email:"kontakt@gelsenkirchen.de", initials:"GE", team:"Auftraggeber",
       color:"#555",    desc:"Nur Lesezugriff" },
   ];
 

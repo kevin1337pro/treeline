@@ -4,7 +4,10 @@ function TreesView({ selectedTreeId, onSelectTree }) {
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [activeTab, setActiveTab] = React.useState("info");
   const [showAddForm, setShowAddForm] = React.useState(false);
-  const [newTree, setNewTree] = React.useState({ name:"", species:"", standort:"", status:"gut" });
+  const [editing, setEditing] = React.useState(false);
+  const [dataVersion, setDataVersion] = React.useState(0);
+  const [newTree, setNewTree] = React.useState(createTreeForm());
+  const [editTree, setEditTree] = React.useState(createTreeForm());
 
   // Krankheit state
   const [symptoms, setSymptoms] = React.useState([
@@ -43,12 +46,132 @@ function TreesView({ selectedTreeId, onSelectTree }) {
     );
   }
 
+  function createTreeForm(tree = {}) {
+    return {
+      name: tree.name || "",
+      species: tree.species || "",
+      standort: tree.standort || "",
+      status: tree.status || "gut",
+      lat: tree.lat ?? 51.59683,
+      lng: tree.lng ?? 6.99559,
+      height: tree.height ?? 0,
+      trunkDiam: tree.trunkDiam ?? 0,
+      crownDiam: tree.crownDiam ?? 0,
+      age: tree.age ?? 0,
+      owner: tree.owner || "",
+      assignedTo: tree.assignedTo || "",
+      certified: Boolean(tree.certified),
+      certDate: tree.certDate || "",
+      certifier: tree.certifier || "",
+      vta: tree.vta || "Ausstehend",
+      tags: (tree.tags || []).join(", "),
+      notes: tree.notes || "",
+    };
+  }
+
+  function treeFromForm(form, id) {
+    return {
+      id,
+      name: form.name.trim(),
+      species: form.species.trim(),
+      standort: form.standort.trim() || "Buerelterstraße 27, 45896 Gelsenkirchen",
+      status: form.status,
+      lat: Number(form.lat) || 51.59683,
+      lng: Number(form.lng) || 6.99559,
+      height: Number(form.height) || 0,
+      trunkDiam: Number(form.trunkDiam) || 0,
+      crownDiam: Number(form.crownDiam) || 0,
+      age: Number(form.age) || 0,
+      certified: Boolean(form.certified),
+      certDate: form.certified ? (form.certDate || null) : null,
+      certifier: form.certified ? (form.certifier || null) : null,
+      vta: form.vta || "Ausstehend",
+      owner: form.owner.trim(),
+      assignedTo: form.assignedTo || null,
+      tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
+      notes: form.notes.trim(),
+      measuresIds: [],
+      images: [],
+      createdAt: new Date().toISOString().slice(0,10),
+    };
+  }
+
+  function persistTree(tree) {
+    window.TREELINE_DB?.save();
+    window.TREELINE_DB?.saveTree?.(tree).catch(err => {
+      console.warn("Appwrite save failed; tree is stored locally.", err);
+    });
+    setDataVersion(v => v + 1);
+  }
+
+  function startEdit() {
+    if (!selectedTree) return;
+    setEditTree(createTreeForm(selectedTree));
+    setEditing(true);
+    setActiveTab("info");
+  }
+
   function addSymptom() {
     const sym = { ...newSym, id:`SYM-${String(symptoms.length+1).padStart(3,"0")}`,
       treeId: selectedTree.id, date: new Date().toISOString().slice(0,10), photo: null };
     setSymptoms(prev => [...prev, sym]);
     setShowSymForm(false);
     setNewSym({ category:"Schädling", name:"", severity:"mittel", area:"", notes:"" });
+  }
+
+  async function addTree() {
+    if (!newTree.name.trim()) return;
+    const newId = `TRE-${new Date().getFullYear()}-${String(trees.length+1).padStart(3,"0")}`;
+    const tree = treeFromForm(newTree, newId);
+    MOCK_DATA.trees.push(tree);
+    persistTree(tree);
+    setNewTree(createTreeForm());
+    setShowAddForm(false);
+    onSelectTree(tree.id);
+  }
+
+  function saveEdit() {
+    if (!selectedTree || !editTree.name.trim()) return;
+    const updated = {
+      ...selectedTree,
+      ...treeFromForm(editTree, selectedTree.id),
+      measuresIds: selectedTree.measuresIds || [],
+      images: selectedTree.images || [],
+      createdAt: selectedTree.createdAt || new Date().toISOString().slice(0,10),
+    };
+    Object.assign(selectedTree, updated);
+    persistTree(selectedTree);
+    setEditing(false);
+  }
+
+  function TreeForm({ value, onChange }) {
+    const set = (key, val) => onChange({ ...value, [key]: val });
+    return (
+      <div style={tvStyles.formGrid}>
+        <Field label="Name / Baumart" required><input style={tvStyles.fInput} value={value.name} onChange={e=>set("name", e.target.value)} placeholder="z.B. Stieleiche"/></Field>
+        <Field label="Lateinische Art"><input style={tvStyles.fInput} value={value.species} onChange={e=>set("species", e.target.value)} placeholder="Quercus robur"/></Field>
+        <Field label="Standort" wide><input style={tvStyles.fInput} value={value.standort} onChange={e=>set("standort", e.target.value)} placeholder="Adresse oder Standortbeschreibung"/></Field>
+        <Field label="Status"><select style={tvStyles.fInput} value={value.status} onChange={e=>set("status", e.target.value)}>{Object.entries(statusLabel).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></Field>
+        <Field label="Eigentümer"><input style={tvStyles.fInput} value={value.owner} onChange={e=>set("owner", e.target.value)} placeholder="Eigentümer / Auftraggeber"/></Field>
+        <Field label="Zuständig"><select style={tvStyles.fInput} value={value.assignedTo} onChange={e=>set("assignedTo", e.target.value)}><option value="">Nicht zugewiesen</option>{MOCK_DATA.users.filter(u=>u.role!=="client").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></Field>
+        <Field label="Breitengrad"><input style={tvStyles.fInput} type="number" step="0.00001" value={value.lat} onChange={e=>set("lat", e.target.value)}/></Field>
+        <Field label="Längengrad"><input style={tvStyles.fInput} type="number" step="0.00001" value={value.lng} onChange={e=>set("lng", e.target.value)}/></Field>
+        <Field label="Höhe (m)"><input style={tvStyles.fInput} type="number" min="0" step="0.1" value={value.height} onChange={e=>set("height", e.target.value)}/></Field>
+        <Field label="Stamm-Ø (cm)"><input style={tvStyles.fInput} type="number" min="0" step="1" value={value.trunkDiam} onChange={e=>set("trunkDiam", e.target.value)}/></Field>
+        <Field label="Kronen-Ø (m)"><input style={tvStyles.fInput} type="number" min="0" step="0.1" value={value.crownDiam} onChange={e=>set("crownDiam", e.target.value)}/></Field>
+        <Field label="Alter (Jahre)"><input style={tvStyles.fInput} type="number" min="0" step="1" value={value.age} onChange={e=>set("age", e.target.value)}/></Field>
+        <Field label="VTA / Bewertung"><input style={tvStyles.fInput} value={value.vta} onChange={e=>set("vta", e.target.value)} placeholder="Ausstehend, VTA Stufe 1 ..."/></Field>
+        <Field label="Zertifiziert"><label style={tvStyles.checkLabel}><input type="checkbox" checked={value.certified} onChange={e=>set("certified", e.target.checked)}/> Zertifizierung vorhanden</label></Field>
+        <Field label="Zertifizierungsdatum"><input style={tvStyles.fInput} type="date" value={value.certDate} onChange={e=>set("certDate", e.target.value)} disabled={!value.certified}/></Field>
+        <Field label="Gutachter"><input style={tvStyles.fInput} value={value.certifier} onChange={e=>set("certifier", e.target.value)} disabled={!value.certified}/></Field>
+        <Field label="Tags" wide><input style={tvStyles.fInput} value={value.tags} onChange={e=>set("tags", e.target.value)} placeholder="Kommagetrennt, z.B. Monitoring, Totholz"/></Field>
+        <Field label="Notizen" wide><textarea style={{...tvStyles.fInput,minHeight:84,resize:"vertical"}} value={value.notes} onChange={e=>set("notes", e.target.value)} placeholder="Kontrollhinweise, Schäden, Maßnahmenbedarf"/></Field>
+      </div>
+    );
+  }
+
+  function Field({ label, required, wide, children }) {
+    return <div style={wide ? tvStyles.formWide : null}><div style={tvStyles.fLabel}>{label}{required ? " *" : ""}</div>{children}</div>;
   }
 
   return (
@@ -100,7 +223,12 @@ function TreesView({ selectedTreeId, onSelectTree }) {
               <div style={tvStyles.detailName}>{selectedTree.name}</div>
               <div style={tvStyles.detailSpecies}>{selectedTree.species}</div>
             </div>
-            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+            <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap",justifyContent:"flex-end"}}>
+              {!editing && <button style={tvStyles.smallBtn} onClick={startEdit}>Bearbeiten</button>}
+              {editing && <>
+                <button style={tvStyles.cancelBtn} onClick={()=>setEditing(false)}>Abbrechen</button>
+                <button style={tvStyles.primaryBtn} onClick={saveEdit} disabled={!editTree.name.trim()}>Speichern</button>
+              </>}
               <span style={{...tvStyles.bigBadge,background:statusColors[selectedTree.status]+"20",color:statusColors[selectedTree.status]}}>
                 {statusLabel[selectedTree.status]}
               </span>
@@ -121,7 +249,13 @@ function TreesView({ selectedTreeId, onSelectTree }) {
 
           <div style={tvStyles.tabContent}>
             {/* STAMMDATEN */}
-            {activeTab==="info" && (
+            {activeTab==="info" && editing && (
+              <div>
+                <div style={tvStyles.section}>Baumdaten bearbeiten</div>
+                <TreeForm value={editTree} onChange={setEditTree} />
+              </div>
+            )}
+            {activeTab==="info" && !editing && (
               <div>
                 <div style={tvStyles.section}>Standort & Eigentümer</div>
                 <InfoRow label="Standort" value={selectedTree.standort}/>
@@ -302,23 +436,10 @@ function TreesView({ selectedTreeId, onSelectTree }) {
         <div style={tvStyles.modalOverlay} onClick={()=>setShowAddForm(false)}>
           <div style={tvStyles.modal} onClick={e=>e.stopPropagation()}>
             <div style={tvStyles.modalTitle}>Neuen Baum erfassen</div>
-            {[["Name / Baumart","name"],["Lateinische Art","species"],["Standort","standort"]].map(([label,field])=>(
-              <div key={field} style={{marginBottom:12}}>
-                <div style={tvStyles.fLabel}>{label}</div>
-                <input style={tvStyles.fInput} value={newTree[field]} placeholder={label}
-                  onChange={e=>setNewTree({...newTree,[field]:e.target.value})}/>
-              </div>
-            ))}
-            <div style={{marginBottom:16}}>
-              <div style={tvStyles.fLabel}>Status</div>
-              <select style={tvStyles.fInput} value={newTree.status}
-                onChange={e=>setNewTree({...newTree,status:e.target.value})}>
-                {Object.entries(statusLabel).map(([v,l])=><option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
+            <TreeForm value={newTree} onChange={setNewTree} />
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button style={tvStyles.cancelBtn} onClick={()=>setShowAddForm(false)}>Abbrechen</button>
-              <button style={tvStyles.primaryBtn} onClick={()=>setShowAddForm(false)}>Baum anlegen</button>
+              <button style={tvStyles.primaryBtn} onClick={addTree} disabled={!newTree.name.trim()}>Baum anlegen</button>
             </div>
           </div>
         </div>
@@ -372,10 +493,13 @@ const tvStyles = {
   smallBtn:     {padding:"6px 12px",background:"#EDF7F1",color:"#1D7A56",border:"none",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer"},
   cancelBtn:    {padding:"10px 16px",background:"#f5f5f3",color:"#555",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"},
   modalOverlay: {position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"},
-  modal:        {background:"#fff",borderRadius:12,padding:"28px",width:420,boxShadow:"0 20px 60px rgba(0,0,0,0.2)"},
+  modal:        {background:"#fff",borderRadius:12,padding:"28px",width:"min(780px, calc(100vw - 32px))",maxHeight:"calc(100vh - 48px)",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"},
   modalTitle:   {fontSize:18,fontWeight:700,color:"#1a1a18",marginBottom:20},
+  formGrid:     {display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12,marginBottom:16},
+  formWide:     {gridColumn:"1 / -1"},
   fLabel:       {fontSize:12,fontWeight:600,color:"#555",marginBottom:4},
   fInput:       {width:"100%",padding:"9px 12px",border:"1px solid #ddd",borderRadius:7,fontSize:13,outline:"none",boxSizing:"border-box"},
+  checkLabel:   {display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#444",height:37},
   symCard:      {background:"#fff",border:"1px solid #e5e5e0",borderRadius:9,padding:"16px",marginBottom:10},
   symForm:      {background:"#fff",border:"1px solid #e5e5e0",borderRadius:9,padding:"16px",marginTop:12},
   severBadge:   {padding:"3px 9px",borderRadius:100,fontSize:11,fontWeight:700},

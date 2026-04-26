@@ -1,18 +1,18 @@
 function PflanzungView() {
   const [plants, setPlants] = React.useState([
-    { id:"NEU-001", species:"Traubeneiche", latinName:"Quercus petraea", standort:"Parkanlage Nord, Cottbus",
+    { id:"NEU-001", species:"Traubeneiche", latinName:"Quercus petraea", standort:"Parkanlage Scholven, Gelsenkirchen",
       plannedDate:"2025-11-15", status:"geplant", count:3, size:"16/18 cm StU",
       reason:"Ersatzpflanzung nach Fällung Silberpappel", soil:"Lehmboden, pH 6.5",
       sunlight:"Vollsonne", waterReq:"mittel", notes:"Abstimmung mit Stadtverwaltung erforderlich",
-      assignedTo:"user-002", lat:51.762, lng:14.336, tags:["Ersatzpflanzung","Stadtbaum"] },
-    { id:"NEU-002", species:"Feldahorn", latinName:"Acer campestre", standort:"Schulstraße 12, Cottbus",
+      assignedTo:"user-002", lat:51.5986, lng:6.9968, tags:["Ersatzpflanzung","Stadtbaum"] },
+    { id:"NEU-002", species:"Feldahorn", latinName:"Acer campestre", standort:"Schwedenstraße 12, Gelsenkirchen",
       plannedDate:"2025-10-20", status:"in_vorbereitung", count:2, size:"12/14 cm StU",
       reason:"Straßenbaum-Ergänzung", soil:"Sandboden", sunlight:"Halbschatten", waterReq:"niedrig",
-      notes:"Bodenvorbereitung läuft", assignedTo:"user-002", lat:51.755, lng:14.330, tags:["Straßenbaum"] },
-    { id:"NEU-003", species:"Hainbuche", latinName:"Carpinus betulus", standort:"Waldrand West",
+      notes:"Bodenvorbereitung läuft", assignedTo:"user-002", lat:51.5965, lng:6.9924, tags:["Straßenbaum"] },
+    { id:"NEU-003", species:"Hainbuche", latinName:"Carpinus betulus", standort:"Waldrand Scholven West",
       plannedDate:"2025-03-01", status:"abgeschlossen", count:8, size:"8/10 cm StU",
       reason:"Waldrandaufwertung", soil:"Lehmboden", sunlight:"Schatten", waterReq:"mittel",
-      notes:"Gepflanzt am 28.02.2025", assignedTo:"user-003", lat:51.760, lng:14.328, tags:["Forstpflanzung"] },
+      notes:"Gepflanzt am 28.02.2025", assignedTo:"user-003", lat:51.6004, lng:6.9932, tags:["Forstpflanzung"] },
   ]);
   const [showForm, setShowForm] = React.useState(false);
   const [selected, setSelected] = React.useState(plants[0]);

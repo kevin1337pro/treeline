@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "serve . -l 4173",
-    "start": "npm run dev"
+    "start": "npm run dev",
+    "appwrite:setup": "node scripts/setup-appwrite.mjs"
   },
   "keywords": [
     "treeline",
