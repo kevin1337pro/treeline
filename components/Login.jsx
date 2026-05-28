@@ -5,13 +5,13 @@ function Login({ onLogin }) {
   const [loading, setLoading] = React.useState(false);
 
   const roleProfiles = [
-    { role:"admin",     name:"Markus Enbergs",   email:"m.enbergs@enbergs.de",   initials:"ME", team:"Geschäftsführung",
+    { id:"user-001", role:"admin",     name:"Markus Enbergs",   email:"m.enbergs@enbergs.de",   initials:"ME", team:"Geschäftsführung",
       color:"#1D7A56", desc:"Voller Zugriff" },
-    { role:"team",      name:"Jan Becker",        email:"j.becker@enbergs.de",     initials:"JB", team:"Außendienst",
+    { id:"user-002", role:"team",      name:"Jan Becker",        email:"j.becker@enbergs.de",     initials:"JB", team:"Außendienst",
       color:"#1565A0", desc:"Bäume & Maßnahmen" },
-    { role:"certifier", name:"Anna Schneider",    email:"a.schneider@enbergs.de",  initials:"AS", team:"Gutachten",
+    { id:"user-003", role:"certifier", name:"Anna Schneider",    email:"a.schneider@enbergs.de",  initials:"AS", team:"Gutachten",
       color:"#6D4C41", desc:"Zertifizierung" },
-    { role:"client",    name:"Stadt Gelsenkirchen", email:"kontakt@gelsenkirchen.de", initials:"GE", team:"Auftraggeber",
+    { id:"user-006", role:"client",    name:"Stadt Gelsenkirchen", email:"kontakt@gelsenkirchen.de", initials:"GE", team:"Auftraggeber",
       color:"#555",    desc:"Nur Lesezugriff" },
   ];
 
@@ -19,8 +19,8 @@ function Login({ onLogin }) {
     setLoading(true);
     const profile = roleProfiles.find(r => r.role === selectedRole);
     setTimeout(() => {
-      onLogin({ ...profile, id: "user-001" });
-    }, 900);
+      onLogin({ ...profile });
+    }, 250);
   }
 
   const selected = roleProfiles.find(r => r.role === selectedRole);

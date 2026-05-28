@@ -1,4 +1,5 @@
 function UploadView() {
+  const fileInputRef = React.useRef(null);
   const [files, setFiles] = React.useState([
     { id:1,  name:"Eiche_TRE-2024-001_Drohne.jpg",    type:"image", size:"4.2 MB", tree:"TRE-2024-001", date:"2024-11-10", tag:"Drohne",  thumb:"https://images.unsplash.com/photo-1542621334-a254cf47733d?w=400&q=80", drone:{ alt:48, speed:6.2, ndvi:0.72, thermal:false } },
     { id:2,  name:"Rotbuche_TRE-2024-002_Pilz.jpg",   type:"image", size:"2.8 MB", tree:"TRE-2024-002", date:"2025-01-15", tag:"Befund",  thumb:"https://images.unsplash.com/photo-1448375240586-882707db888b?w=400&q=80", drone:null },
@@ -23,17 +24,26 @@ function UploadView() {
     (tagFilter  === "all" || f.tag  === tagFilter)
   );
 
-  function handleDrop(e) {
-    e.preventDefault(); setDragging(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    const newFiles = dropped.map((f, i) => ({
+  function buildFileEntries(fileList) {
+    return Array.from(fileList).map((f, i) => ({
       id: files.length + i + 1, name: f.name,
       type: f.type.startsWith("video") ? "video" : "image",
       size: (f.size/1024/1024).toFixed(1)+" MB",
       tree:"—", date: new Date().toISOString().slice(0,10),
-      tag:"Neu", thumb:null, drone:null,
+      tag:"Neu", thumb:f.type.startsWith("image") ? URL.createObjectURL(f) : null, drone:null,
     }));
+  }
+  function addFiles(fileList) {
+    const newFiles = buildFileEntries(fileList);
     setFiles(prev => [...prev, ...newFiles]);
+  }
+  function handleDrop(e) {
+    e.preventDefault(); setDragging(false);
+    addFiles(e.dataTransfer.files);
+  }
+  function handleFileSelect(e) {
+    addFiles(e.target.files);
+    e.target.value = "";
   }
 
   const tagColors = { Drohne:"#1565A0", Befund:"#E65100", Maßnahme:"#1D7A56", NDVI:"#558B2F", Thermal:"#B71C1C", Neu:"#888" };
@@ -89,9 +99,11 @@ function UploadView() {
         <div style={{fontSize:36,marginBottom:8}}>☁️</div>
         <div style={upStyles.dropTitle}>Dateien hierher ziehen oder auswählen</div>
         <div style={upStyles.dropSub}>JPG · PNG · MP4 · MOV · DJI-Formate · Max 500 MB</div>
+        <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.mov"
+          style={{display:"none"}} onChange={handleFileSelect} />
         <div style={{display:"flex",gap:10,marginTop:14,justifyContent:"center",flexWrap:"wrap"}}>
-          <button style={upStyles.uploadBtn}>📂 Dateien auswählen</button>
-          <button style={upStyles.uploadBtnAlt}>🚁 Drohnenaufnahme importieren</button>
+          <button style={upStyles.uploadBtn} onClick={()=>fileInputRef.current?.click()}>📂 Dateien auswählen</button>
+          <button style={upStyles.uploadBtnAlt} onClick={()=>fileInputRef.current?.click()}>🚁 Drohnenaufnahme importieren</button>
         </div>
       </div>
 

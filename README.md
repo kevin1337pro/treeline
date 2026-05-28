@@ -10,6 +10,7 @@ Das Projekt wurde als lokale Basis initialisiert mit:
 - `package.json` mit Startskript fuer einen lokalen Entwicklungsserver
 - `.gitignore` fuer typische lokale Artefakte
 - dieser README-Datei als Einstiegspunkt fuer Entwicklung und Ausbau
+- Playwright-Smoke-Tests fuer Login, Navigation und erste Kernaktionen
 
 ## Voraussetzungen
 
@@ -30,6 +31,14 @@ npm run dev
 
 Danach ist die Anwendung lokal unter `http://localhost:4173` erreichbar.
 
+## Tests
+
+```bash
+npm run test:smoke
+```
+
+Die Smoke-Tests starten bei Bedarf den lokalen Server und pruefen Login, Navigation, Massnahmen-Erstellung und Team-Einladung.
+
 ## Projektstruktur
 
 ```text
@@ -48,6 +57,8 @@ Danach ist die Anwendung lokal unter `http://localhost:4173` erreichbar.
 │   ├── TreesView.jsx
 │   ├── UploadView.jsx
 │   └── data.js
+├── tests/
+├── ROADMAP.md
 └── uploads/
 ```
 
@@ -58,6 +69,33 @@ Danach ist die Anwendung lokal unter `http://localhost:4173` erreichbar.
 - Kartenfunktion: Leaflet
 - Datenhaltung: lokale Mock-Daten in `components/data.js`
 - Persistenz: teilweise ueber `localStorage`
+- Auftragsplanung: eigene Ansicht fuer Einsatzplanung, Team-/Fahrzeugpruefung und Baumroute
+
+## Auftragsplanung
+
+Die App enthaelt einen Beispielauftrag fuer die Gahlener Strasse in Dorsten:
+
+- Kevin Stumpe und Thorsten Thesing als Aussendienst-Team
+- Fuehrerscheinpruefung fuer B, C/CE und Fahrzeuggewicht
+- Mercedes 22m Hubsteiger `BOT - RR - 220`
+- VW TGE 3 `BOT - BE - 118`
+- Schliesing Hacker als Anhaenger am TGE
+- Baumroute links/rechts entlang der Strasse mit direkter Baumprofil-Oeffnung
+
+Die Ansicht `Auftraege` ist fuer die Buero-Planung und fuer die Bearbeitung draussen optimiert.
+
+## Appwrite Setup
+
+Das Skript legt die Datenbank `treeline` und Collections fuer `trees`, `orders`, `measures`, `users`, `vehicles`, `equipment`, `plantings` und `media` an. Es braucht ein vorhandenes Appwrite-Projekt und einen API-Key:
+
+```bash
+export APPWRITE_ENDPOINT="https://<REGION>.cloud.appwrite.io/v1"
+export APPWRITE_PROJECT_ID="<PROJECT_ID>"
+export APPWRITE_API_KEY="<API_KEY>"
+npm run appwrite:setup
+```
+
+Ohne diese Umgebungsvariablen kann lokal kein Appwrite-Projekt oder Schema angelegt werden.
 
 ## Hinweise zum aktuellen Setup
 
@@ -82,6 +120,7 @@ Danach ist die Anwendung lokal unter `http://localhost:4173` erreichbar.
 
 ## Naechste sinnvolle Schritte
 
-1. `npm install` ausfuehren.
-2. `npm run dev` starten.
+1. `npm run test:smoke` regelmaessig ausfuehren.
+2. Die Roadmap in `ROADMAP.md` priorisieren.
 3. Entscheiden, ob das Projekt als statische Demo bestehen bleibt oder auf einen modernen Frontend-Stack migriert werden soll.
+4. Datenzugriff schrittweise aus den Komponenten in ein Repository-Layer extrahieren.

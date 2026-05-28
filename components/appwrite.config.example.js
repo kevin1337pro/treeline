@@ -3,4 +3,14 @@ window.TREELINE_APPWRITE_CONFIG = {
   projectId: "<APPWRITE_PROJECT_ID>",
   databaseId: "treeline",
   treesCollectionId: "trees",
+  collectionIds: {
+    trees: "trees",
+    orders: "orders",
+    measures: "measures",
+    users: "users",
+    vehicles: "vehicles",
+    equipment: "equipment",
+    plantings: "plantings",
+    media: "media",
+  },
 };

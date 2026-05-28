@@ -9,17 +9,19 @@ function App() {
   const [selectedTreeId, setSelectedTreeId] = React.useState(savedTree);
   const [tweaksVisible, setTweaksVisible] = React.useState(false);
   const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
-  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [sidebarOpen, setSidebarOpen] = React.useState(() => window.innerWidth > 768);
 
   React.useEffect(() => { localStorage.setItem("treeline_nav", page); }, [page]);
   React.useEffect(() => { if (selectedTreeId) localStorage.setItem("treeline_selectedTree", selectedTreeId); }, [selectedTreeId]);
 
   React.useEffect(() => {
-    window.addEventListener("message", e => {
+    function handleMessage(e) {
       if (e.data?.type === "__activate_edit_mode")   setTweaksVisible(true);
       if (e.data?.type === "__deactivate_edit_mode") setTweaksVisible(false);
-    });
+    }
+    window.addEventListener("message", handleMessage);
     window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+    return () => window.removeEventListener("message", handleMessage);
   }, []);
 
   function applyTweak(key, val) {
@@ -60,7 +62,7 @@ function App() {
   }
 
   const pageTitle = {
-    dashboard:"Übersicht", map:"Karte", trees:"Bäume",
+    dashboard:"Übersicht", orders:"Aufträge", map:"Karte", trees:"Bäume",
     measures:"Maßnahmen", pflanzung:"Neupflanzungen", team:"Team", upload:"Medien",
   };
 
@@ -71,7 +73,7 @@ function App() {
       <Sidebar active={page} onNav={handleNav} currentUser={user} onLogout={handleLogout}
         collapsed={!sidebarOpen} onToggle={() => setSidebarOpen(o => !o)} />
 
-      <div style={{ marginLeft: sidebarOpen ? 220 : 56, flex:1, display:"flex", flexDirection:"column",
+      <div className="main-content" style={{ marginLeft: sidebarOpen ? 220 : 56, flex:1, display:"flex", flexDirection:"column",
         minHeight:"100vh", transition:"margin-left 0.2s" }}>
         {/* Top bar */}
         <div style={appStyles.topBar}>
@@ -108,7 +110,8 @@ function App() {
 
         {/* Content */}
         <div style={{ flex:1, overflowY: page==="map"||page==="trees"||page==="pflanzung" ? "hidden" : "auto" }}>
-          {page==="dashboard" && <Dashboard onNav={handleNav} onSelectTree={handleSelectTree}/>}
+          {page==="dashboard" && <Dashboard currentUser={user} onNav={handleNav} onSelectTree={handleSelectTree}/>}
+          {page==="orders"    && <AuftraegeView onSelectTree={handleSelectTree}/>}
           {page==="map"       && <MapView onSelectTree={handleSelectTree}/>}
           {page==="trees"     && <TreesView selectedTreeId={selectedTreeId} onSelectTree={setSelectedTreeId}/>}
           {page==="measures"  && <MassnahmenView/>}

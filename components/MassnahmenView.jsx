@@ -112,6 +112,7 @@ function MassnahmenView() {
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [view, setView] = React.useState("kanban");
   const [showModal, setShowModal] = React.useState(false);
+  const [newMeasure, setNewMeasure] = React.useState(createMeasureForm());
 
   const statusCols = [
     { id:"geplant",       label:"Geplant",       color:"#1D7A56" },
@@ -132,6 +133,45 @@ function MassnahmenView() {
 
   function getTree(id) { return trees.find(t=>t.id===id); }
   function getUser(id) { return users.find(u=>u.id===id); }
+  function createMeasureForm() {
+    return {
+      title:"",
+      type:Object.keys(MOCK_DATA.measureTypes)[0] || "baumschnitt",
+      treeId:MOCK_DATA.trees[0]?.id || "",
+      priority:"mittel",
+      status:"geplant",
+      assignedTo:MOCK_DATA.users.find(u => u.role !== "client")?.id || "",
+      date:new Date().toISOString().slice(0,10),
+      cost:"",
+      notes:"",
+    };
+  }
+  function nextMeasureId() {
+    const max = measures.reduce((n, m) => Math.max(n, Number((m.id || "").match(/\d+$/)?.[0] || 0)), 0);
+    return `MAU-${String(max + 1).padStart(3,"0")}`;
+  }
+  function createMeasure() {
+    if (!newMeasure.title.trim() || !newMeasure.treeId) return;
+    const measure = {
+      id: nextMeasureId(),
+      type: newMeasure.type,
+      label: measureTypes[newMeasure.type]?.label || newMeasure.type,
+      title: newMeasure.title.trim(),
+      treeId: newMeasure.treeId,
+      status: newMeasure.status,
+      priority: newMeasure.priority,
+      assignedTo: newMeasure.assignedTo || null,
+      date: newMeasure.date || new Date().toISOString().slice(0,10),
+      notes: newMeasure.notes.trim(),
+      cost: Number(newMeasure.cost) || 0,
+    };
+    measures.push(measure);
+    const tree = trees.find(t => t.id === measure.treeId);
+    if (tree) tree.measuresIds = [...(tree.measuresIds || []), measure.id];
+    window.TREELINE_DB?.save();
+    setNewMeasure(createMeasureForm());
+    setShowModal(false);
+  }
 
   function MeasureCard({ m }) {
     const tree = getTree(m.treeId);
@@ -249,30 +289,60 @@ function MassnahmenView() {
           <div style={msStyles.modal} onClick={e=>e.stopPropagation()}>
             <div style={msStyles.modalTitle}>Neue Maßnahme</div>
             <div style={msStyles.formLabel}>Titel</div>
-            <input style={msStyles.formInput} placeholder="z.B. Kronenpflege Eiche TRE-2024-001" />
+            <input style={msStyles.formInput} placeholder="z.B. Kronenpflege Eiche TRE-2024-001"
+              value={newMeasure.title} onChange={e=>setNewMeasure({...newMeasure,title:e.target.value})} />
             <div style={msStyles.formLabel}>Maßnahmentyp</div>
-            <select style={msStyles.formInput}>
+            <select style={msStyles.formInput} value={newMeasure.type}
+              onChange={e=>setNewMeasure({...newMeasure,type:e.target.value})}>
               {Object.entries(measureTypes).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
             </select>
             <div style={msStyles.formLabel}>Baum</div>
-            <select style={msStyles.formInput}>
+            <select style={msStyles.formInput} value={newMeasure.treeId}
+              onChange={e=>setNewMeasure({...newMeasure,treeId:e.target.value})}>
               {trees.map(t=><option key={t.id} value={t.id}>{t.id} – {t.name}</option>)}
             </select>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <div>
                 <div style={msStyles.formLabel}>Priorität</div>
-                <select style={msStyles.formInput}><option>kritisch</option><option>hoch</option><option>mittel</option><option>niedrig</option></select>
+                <select style={msStyles.formInput} value={newMeasure.priority}
+                  onChange={e=>setNewMeasure({...newMeasure,priority:e.target.value})}>
+                  <option>kritisch</option><option>hoch</option><option>mittel</option><option>niedrig</option>
+                </select>
               </div>
               <div>
                 <div style={msStyles.formLabel}>Datum</div>
-                <input type="date" style={msStyles.formInput}/>
+                <input type="date" style={msStyles.formInput} value={newMeasure.date}
+                  onChange={e=>setNewMeasure({...newMeasure,date:e.target.value})}/>
               </div>
             </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div>
+                <div style={msStyles.formLabel}>Status</div>
+                <select style={msStyles.formInput} value={newMeasure.status}
+                  onChange={e=>setNewMeasure({...newMeasure,status:e.target.value})}>
+                  <option value="geplant">Geplant</option>
+                  <option value="in_arbeit">In Arbeit</option>
+                  <option value="abgeschlossen">Abgeschlossen</option>
+                </select>
+              </div>
+              <div>
+                <div style={msStyles.formLabel}>Kosten (€)</div>
+                <input type="number" min="0" step="1" style={msStyles.formInput}
+                  value={newMeasure.cost} onChange={e=>setNewMeasure({...newMeasure,cost:e.target.value})}/>
+              </div>
+            </div>
+            <div style={msStyles.formLabel}>Zuständig</div>
+            <select style={msStyles.formInput} value={newMeasure.assignedTo}
+              onChange={e=>setNewMeasure({...newMeasure,assignedTo:e.target.value})}>
+              <option value="">Nicht zugewiesen</option>
+              {users.filter(u=>u.role!=="client").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
             <div style={msStyles.formLabel}>Notizen</div>
-            <textarea style={{...msStyles.formInput,minHeight:72,resize:"vertical"}} placeholder="Beschreibung…"/>
+            <textarea style={{...msStyles.formInput,minHeight:72,resize:"vertical"}} placeholder="Beschreibung…"
+              value={newMeasure.notes} onChange={e=>setNewMeasure({...newMeasure,notes:e.target.value})}/>
             <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
               <button style={msStyles.cancelBtn} onClick={()=>setShowModal(false)}>Abbrechen</button>
-              <button style={msStyles.primaryBtn} onClick={()=>setShowModal(false)}>Erstellen</button>
+              <button style={msStyles.primaryBtn} onClick={createMeasure} disabled={!newMeasure.title.trim()}>Erstellen</button>
             </div>
           </div>
         </div>

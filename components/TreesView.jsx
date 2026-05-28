@@ -26,7 +26,8 @@ function TreesView({ selectedTreeId, onSelectTree }) {
 
   const filtered = trees.filter(t => {
     const q = search.toLowerCase();
-    return (!q || t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || t.species.toLowerCase().includes(q))
+    const haystack = `${t.id} ${t.name} ${t.species} ${t.standort} ${t.orderId || ""} ${(t.tags || []).join(" ")} ${t.routeSide || ""}`.toLowerCase();
+    return (!q || haystack.includes(q))
       && (statusFilter==="all" || t.status===statusFilter);
   });
 

@@ -1,4 +1,4 @@
-function Dashboard({ onNav, onSelectTree }) {
+function Dashboard({ currentUser, onNav, onSelectTree }) {
   const { trees, measures, users, statusColors, measureTypes } = MOCK_DATA;
 
   const statusCount = { gut:0, mittel:0, schlecht:0, kritisch:0 };
@@ -76,6 +76,7 @@ function Dashboard({ onNav, onSelectTree }) {
   const monthlyMeasures = [3,5,4,7,6,8].map((v, i) => ({
     value: v, label: ["Nov","Dez","Jan","Feb","Mär","Apr"][i], color: "#1D7A56"
   }));
+  const userName = currentUser?.name || MOCK_DATA.currentUser.name;
 
   const mtypeSummary = Object.entries(measureTypes).slice(0,6).map(([k,v]) => ({
     label: v.label.split(" ")[0], value: measures.filter(m=>m.type===k).length, color: v.color
@@ -86,7 +87,7 @@ function Dashboard({ onNav, onSelectTree }) {
       <div style={dbStyles.header}>
         <div>
           <h1 style={dbStyles.title}>Übersicht</h1>
-          <p style={dbStyles.sub}>Willkommen, {MOCK_DATA.currentUser.name.split(" ")[0]} · {new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</p>
+          <p style={dbStyles.sub}>Willkommen, {userName.split(" ")[0]} · {new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</p>
         </div>
         <button style={dbStyles.addBtn} onClick={() => onNav("trees")}>+ Neuer Baum</button>
       </div>
@@ -95,7 +96,7 @@ function Dashboard({ onNav, onSelectTree }) {
       <div style={dbStyles.statGrid}>
         {[
           { label:"Bäume gesamt", value:trees.length, sub:"erfasst", color:"#1D7A56", spark:[4,5,5,6,6,7] },
-          { label:"Zertifiziert",  value:certified,    sub:`${Math.round(certified/trees.length*100)}% zertifiziert`, color:"#1565A0", spark:[2,2,3,4,4,5] },
+          { label:"Zertifiziert",  value:certified,    sub:`${trees.length ? Math.round(certified/trees.length*100) : 0}% zertifiziert`, color:"#1565A0", spark:[2,2,3,4,4,5] },
           { label:"Offene Maßnahmen", value:openMeasures, sub:"aktive Aufgaben", color:"#E6A817", spark:[5,4,6,5,4,5] },
           { label:"Kritisch",     value:criticalTrees.length, sub:"Handlungsbedarf", color:"#B71C1C", spark:[1,2,1,2,1,2] },
         ].map((s,i) => (

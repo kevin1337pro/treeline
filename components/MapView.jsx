@@ -118,7 +118,7 @@ function MapView({ onSelectTree }) {
     if (!q) return;
 
     const localTree = trees.find(t => {
-      const haystack = `${t.id} ${t.name} ${t.species} ${t.standort}`.toLowerCase();
+      const haystack = `${t.id} ${t.name} ${t.species} ${t.standort} ${t.orderId || ""} ${(t.tags || []).join(" ")} ${t.routeSide || ""}`.toLowerCase();
       return haystack.includes(q.toLowerCase());
     });
     if (localTree) {

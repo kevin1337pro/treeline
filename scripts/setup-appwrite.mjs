@@ -7,6 +7,16 @@ const projectId = mustEnv("APPWRITE_PROJECT_ID");
 const apiKey = mustEnv("APPWRITE_API_KEY");
 const databaseId = process.env.APPWRITE_DATABASE_ID || "treeline";
 const collectionId = process.env.APPWRITE_TREES_COLLECTION_ID || "trees";
+const appCollections = {
+  trees: collectionId,
+  orders: process.env.APPWRITE_ORDERS_COLLECTION_ID || "orders",
+  measures: process.env.APPWRITE_MEASURES_COLLECTION_ID || "measures",
+  users: process.env.APPWRITE_USERS_COLLECTION_ID || "users",
+  vehicles: process.env.APPWRITE_VEHICLES_COLLECTION_ID || "vehicles",
+  equipment: process.env.APPWRITE_EQUIPMENT_COLLECTION_ID || "equipment",
+  plantings: process.env.APPWRITE_PLANTINGS_COLLECTION_ID || "plantings",
+  media: process.env.APPWRITE_MEDIA_COLLECTION_ID || "media",
+};
 
 const headers = {
   "Content-Type": "application/json",
@@ -73,6 +83,22 @@ async function ensureCollection() {
   });
 }
 
+async function ensureGenericCollection(targetCollectionId, name) {
+  const pathname = `/databases/${databaseId}/collections/${targetCollectionId}`;
+  const current = await exists(pathname);
+  if (current) return current;
+  return request(`/databases/${databaseId}/collections`, {
+    method: "POST",
+    body: JSON.stringify({
+      collectionId: targetCollectionId,
+      name,
+      permissions: ['read("any")', 'create("any")', 'update("any")', 'delete("any")'],
+      documentSecurity: true,
+      enabled: true,
+    }),
+  });
+}
+
 async function ensureAttribute(type, body) {
   const attrPath = `/databases/${databaseId}/collections/${collectionId}/attributes/${body.key}`;
   if (await exists(attrPath)) return;
@@ -103,6 +129,44 @@ async function ensureIndex(key, type, attributes) {
   if (await exists(indexPath)) return;
   try {
     await request(`/databases/${databaseId}/collections/${collectionId}/indexes`, {
+      method: "POST",
+      body: JSON.stringify({ key, type, attributes }),
+    });
+  } catch (err) {
+    if (err.status !== 409) throw err;
+  }
+}
+
+async function ensureCollectionAttribute(targetCollectionId, type, body) {
+  const attrPath = `/databases/${databaseId}/collections/${targetCollectionId}/attributes/${body.key}`;
+  if (await exists(attrPath)) return;
+  try {
+    await request(`/databases/${databaseId}/collections/${targetCollectionId}/attributes/${type}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    if (err.status !== 409) throw err;
+  }
+  await waitForCollectionAttribute(targetCollectionId, body.key);
+}
+
+async function waitForCollectionAttribute(targetCollectionId, key) {
+  const attrPath = `/databases/${databaseId}/collections/${targetCollectionId}/attributes/${key}`;
+  for (let i = 0; i < 40; i += 1) {
+    const attr = await exists(attrPath);
+    if (attr?.status === "available") return;
+    if (attr?.status === "failed") throw new Error(`Attribute ${targetCollectionId}.${key} failed to build.`);
+    await new Promise(resolve => setTimeout(resolve, 750));
+  }
+  throw new Error(`Attribute ${targetCollectionId}.${key} was not available in time.`);
+}
+
+async function ensureCollectionIndex(targetCollectionId, key, type, attributes) {
+  const indexPath = `/databases/${databaseId}/collections/${targetCollectionId}/indexes/${key}`;
+  if (await exists(indexPath)) return;
+  try {
+    await request(`/databases/${databaseId}/collections/${targetCollectionId}/indexes`, {
       method: "POST",
       body: JSON.stringify({ key, type, attributes }),
     });
@@ -180,9 +244,63 @@ function writeFrontendConfig() {
     projectId,
     databaseId,
     treesCollectionId: collectionId,
+    collectionIds: appCollections,
   }, null, 2)};\n`;
   fs.writeFileSync(configPath, content);
   return configPath;
+}
+
+function documentIdFromId(id) {
+  return String(id).replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 36);
+}
+
+function genericDocument(item, fallbackId, type) {
+  const itemId = item.id || fallbackId;
+  return {
+    itemId,
+    title: item.title || item.name || item.label || item.email || itemId,
+    status: item.status || "aktiv",
+    type: item.type || item.role || type,
+    scheduledDate: item.scheduledDate || item.date || item.plannedDate || "",
+    rawJson: JSON.stringify(item),
+  };
+}
+
+async function ensureGenericSchema(targetCollectionId) {
+  const strings = [
+    ["itemId", 80, true],
+    ["title", 255, true],
+    ["status", 64, false],
+    ["type", 80, false],
+    ["scheduledDate", 32, false],
+    ["rawJson", 12000, true],
+  ];
+  for (const [key, size, required] of strings) {
+    await ensureCollectionAttribute(targetCollectionId, "string", { key, size, required, default: required ? undefined : "", array: false });
+  }
+  await ensureCollectionIndex(targetCollectionId, "itemId_unique", "unique", ["itemId"]);
+  await ensureCollectionIndex(targetCollectionId, "title_fulltext", "fulltext", ["title"]);
+  await ensureCollectionIndex(targetCollectionId, "status_key", "key", ["status"]);
+}
+
+async function upsertGenericDocument(targetCollectionId, item, fallbackId, type) {
+  const doc = genericDocument(item, fallbackId, type);
+  const documentId = documentIdFromId(doc.itemId);
+  const pathname = `/databases/${databaseId}/collections/${targetCollectionId}/documents`;
+  const payload = {
+    documentId,
+    data: doc,
+    permissions: ['read("any")', 'update("any")', 'delete("any")'],
+  };
+  try {
+    await request(pathname, { method: "POST", body: JSON.stringify(payload) });
+  } catch (err) {
+    if (err.status !== 409) throw err;
+    await request(`${pathname}/${documentId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ data: payload.data, permissions: payload.permissions }),
+    });
+  }
 }
 
 await ensureDatabase();
@@ -227,7 +345,27 @@ for (const tree of seed.trees) {
   await upsertDocument(tree);
 }
 
+const genericCollections = [
+  ["orders", "Orders", seed.orders || []],
+  ["measures", "Measures", seed.measures || []],
+  ["users", "Users", seed.users || []],
+  ["vehicles", "Vehicles", seed.vehicles || []],
+  ["equipment", "Equipment", seed.equipment || []],
+  ["plantings", "Plantings", seed.plantings || []],
+  ["media", "Media", seed.media || []],
+];
+
+for (const [key, name, items] of genericCollections) {
+  const targetCollectionId = appCollections[key];
+  await ensureGenericCollection(targetCollectionId, name);
+  await ensureGenericSchema(targetCollectionId);
+  for (const [idx, item] of items.entries()) {
+    await upsertGenericDocument(targetCollectionId, item, `${key}-${idx + 1}`, key);
+  }
+}
+
 const configPath = writeFrontendConfig();
-console.log(`Appwrite database ready: ${databaseId}/${collectionId}`);
-console.log(`Seeded ${seed.trees.length} trees.`);
+console.log(`Appwrite database ready: ${databaseId}`);
+console.log(`Collections ready: ${Object.values(appCollections).join(", ")}`);
+console.log(`Seeded ${seed.trees.length} trees, ${(seed.orders || []).length} orders, ${(seed.measures || []).length} measures, ${(seed.users || []).length} users.`);
 console.log(`Frontend config written: ${configPath}`);

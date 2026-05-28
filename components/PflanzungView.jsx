@@ -16,6 +16,7 @@ function PflanzungView() {
   ]);
   const [showForm, setShowForm] = React.useState(false);
   const [selected, setSelected] = React.useState(plants[0]);
+  const [newPlant, setNewPlant] = React.useState(createPlantForm());
 
   const statusLabel = { geplant:"Geplant", in_vorbereitung:"In Vorbereitung", abgeschlossen:"Gepflanzt" };
   const statusColor = { geplant:"#1D7A56", in_vorbereitung:"#E6A817", abgeschlossen:"#aaa" };
@@ -23,6 +24,52 @@ function PflanzungView() {
 
   const totalPlanned = plants.filter(p=>p.status!=="abgeschlossen").reduce((s,p)=>s+p.count,0);
   const totalDone    = plants.filter(p=>p.status==="abgeschlossen").reduce((s,p)=>s+p.count,0);
+  function createPlantForm() {
+    return {
+      species:"",
+      latinName:"",
+      standort:"",
+      plannedDate:new Date().toISOString().slice(0,10),
+      status:"geplant",
+      count:1,
+      size:"12/14 cm StU",
+      reason:"",
+      soil:"",
+      sunlight:"Vollsonne",
+      waterReq:"mittel",
+      notes:"",
+      assignedTo:MOCK_DATA.users.find(u => u.role !== "client")?.id || "",
+      tags:"",
+    };
+  }
+  function nextPlantId() {
+    const max = plants.reduce((n, p) => Math.max(n, Number((p.id || "").match(/\d+$/)?.[0] || 0)), 0);
+    return `NEU-${String(max + 1).padStart(3,"0")}`;
+  }
+  function createPlanting() {
+    if (!newPlant.species.trim() || !newPlant.standort.trim()) return;
+    const plant = {
+      ...newPlant,
+      id: nextPlantId(),
+      species: newPlant.species.trim(),
+      latinName: newPlant.latinName.trim(),
+      standort: newPlant.standort.trim(),
+      count: Number(newPlant.count) || 1,
+      lat: 51.59683,
+      lng: 6.99559,
+      tags: newPlant.tags.split(",").map(t => t.trim()).filter(Boolean),
+    };
+    setPlants(prev => [plant, ...prev]);
+    setSelected(plant);
+    setNewPlant(createPlantForm());
+    setShowForm(false);
+  }
+  function completePlanting() {
+    if (!selected) return;
+    const updated = { ...selected, status:"abgeschlossen" };
+    setPlants(prev => prev.map(p => p.id === selected.id ? updated : p));
+    setSelected(updated);
+  }
 
   return (
     <div style={{ display:"flex", height:"100vh", overflow:"hidden" }}>
@@ -129,7 +176,7 @@ function PflanzungView() {
             <div style={{ display:"flex", gap:8, marginTop:8 }}>
               {selected.status !== "abgeschlossen" && (
                 <button style={pfStyles.primaryBtn}
-                  onClick={()=>setPlants(prev=>prev.map(p=>p.id===selected.id?{...p,status:"abgeschlossen"}:p))}>
+                  onClick={completePlanting}>
                   ✓ Als gepflanzt markieren
                 </button>
               )}
@@ -149,26 +196,72 @@ function PflanzungView() {
               ["Standort","text","Adresse oder Gebiet"]].map(([l,t,ph])=>(
               <div key={l} style={{marginBottom:10}}>
                 <div style={pfStyles.fLabel}>{l}</div>
-                <input type={t} style={pfStyles.fInput} placeholder={ph} />
+                <input type={t} style={pfStyles.fInput} placeholder={ph}
+                  value={l.startsWith("Baumart") ? newPlant.species : l.startsWith("Art") ? newPlant.latinName : newPlant.standort}
+                  onChange={e=>setNewPlant({...newPlant,[l.startsWith("Baumart") ? "species" : l.startsWith("Art") ? "latinName" : "standort"]: e.target.value})} />
               </div>
             ))}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
               <div>
                 <div style={pfStyles.fLabel}>Anzahl</div>
-                <input type="number" style={pfStyles.fInput} defaultValue={1} min={1} />
+                <input type="number" style={pfStyles.fInput} value={newPlant.count} min={1}
+                  onChange={e=>setNewPlant({...newPlant,count:e.target.value})} />
               </div>
               <div>
                 <div style={pfStyles.fLabel}>Pflanztermin</div>
-                <input type="date" style={pfStyles.fInput} />
+                <input type="date" style={pfStyles.fInput} value={newPlant.plannedDate}
+                  onChange={e=>setNewPlant({...newPlant,plannedDate:e.target.value})} />
               </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <div>
+                <div style={pfStyles.fLabel}>Größe</div>
+                <input style={pfStyles.fInput} value={newPlant.size}
+                  onChange={e=>setNewPlant({...newPlant,size:e.target.value})} />
+              </div>
+              <div>
+                <div style={pfStyles.fLabel}>Zuständig</div>
+                <select style={pfStyles.fInput} value={newPlant.assignedTo}
+                  onChange={e=>setNewPlant({...newPlant,assignedTo:e.target.value})}>
+                  {MOCK_DATA.users.filter(u=>u.role!=="client").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <div>
+                <div style={pfStyles.fLabel}>Licht</div>
+                <select style={pfStyles.fInput} value={newPlant.sunlight}
+                  onChange={e=>setNewPlant({...newPlant,sunlight:e.target.value})}>
+                  <option>Vollsonne</option><option>Halbschatten</option><option>Schatten</option>
+                </select>
+              </div>
+              <div>
+                <div style={pfStyles.fLabel}>Wasserbedarf</div>
+                <select style={pfStyles.fInput} value={newPlant.waterReq}
+                  onChange={e=>setNewPlant({...newPlant,waterReq:e.target.value})}>
+                  <option>niedrig</option><option>mittel</option><option>hoch</option>
+                </select>
+              </div>
+            </div>
+            <div style={{marginBottom:10}}>
+              <div style={pfStyles.fLabel}>Boden</div>
+              <input style={pfStyles.fInput} value={newPlant.soil}
+                onChange={e=>setNewPlant({...newPlant,soil:e.target.value})} placeholder="Bodentyp, pH, Vorbereitung" />
             </div>
             <div style={{marginBottom:14}}>
               <div style={pfStyles.fLabel}>Begründung</div>
-              <textarea style={{...pfStyles.fInput,minHeight:60,resize:"vertical"}} placeholder="Ersatzpflanzung, Neubegrünung…" />
+              <textarea style={{...pfStyles.fInput,minHeight:60,resize:"vertical"}} placeholder="Ersatzpflanzung, Neubegrünung…"
+                value={newPlant.reason} onChange={e=>setNewPlant({...newPlant,reason:e.target.value})} />
+            </div>
+            <div style={{marginBottom:14}}>
+              <div style={pfStyles.fLabel}>Tags</div>
+              <input style={pfStyles.fInput} value={newPlant.tags}
+                onChange={e=>setNewPlant({...newPlant,tags:e.target.value})} placeholder="Kommagetrennt" />
             </div>
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button style={pfStyles.cancelBtn} onClick={()=>setShowForm(false)}>Abbrechen</button>
-              <button style={pfStyles.primaryBtn} onClick={()=>setShowForm(false)}>Pflanzung anlegen</button>
+              <button style={pfStyles.primaryBtn} onClick={createPlanting}
+                disabled={!newPlant.species.trim() || !newPlant.standort.trim()}>Pflanzung anlegen</button>
             </div>
           </div>
         </div>

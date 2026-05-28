@@ -2,6 +2,7 @@ function TeamView() {
   const { users, roleLabels } = MOCK_DATA;
   const [selected, setSelected] = React.useState(users[0]);
   const [showInvite, setShowInvite] = React.useState(false);
+  const [invite, setInvite] = React.useState(createInviteForm());
 
   const roleColors = { admin:"#1D7A56", team:"#1565A0", certifier:"#6D4C41", client:"#888", single:"#555" };
   const roleDescriptions = {
@@ -22,6 +23,32 @@ function TeamView() {
 
   const permColor = { "Voll":"#EDF7F1", "Lesen":"#EEF4FB", "Eigene":"#FFF8E1", "—":"#F5F5F5" };
   const permText  = { "Voll":"#1D7A56", "Lesen":"#1565A0", "Eigene":"#E6A817", "—":"#bbb" };
+  function createInviteForm() {
+    return { name:"", email:"", role:"team", team:"Außendienst" };
+  }
+  function initialsForName(name) {
+    return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || "").join("") || "NU";
+  }
+  function nextUserId() {
+    const max = users.reduce((n, u) => Math.max(n, Number((u.id || "").match(/\d+$/)?.[0] || 0)), 0);
+    return `user-${String(max + 1).padStart(3,"0")}`;
+  }
+  function inviteUser() {
+    if (!invite.name.trim() || !invite.email.trim()) return;
+    const user = {
+      id: nextUserId(),
+      name: invite.name.trim(),
+      email: invite.email.trim(),
+      role: invite.role,
+      initials: initialsForName(invite.name),
+      team: invite.team,
+    };
+    users.push(user);
+    window.TREELINE_DB?.save();
+    setSelected(user);
+    setInvite(createInviteForm());
+    setShowInvite(false);
+  }
 
   return (
     <div style={tmStyles.page}>
@@ -136,24 +163,29 @@ function TeamView() {
             {[["Name","text","Max Mustermann"],["E-Mail","email","m.mustermann@enbergs.de"]].map(([label,type,ph]) => (
               <div key={label} style={{ marginBottom:12 }}>
                 <div style={tmStyles.formLabel}>{label}</div>
-                <input type={type} style={tmStyles.formInput} placeholder={ph} />
+                <input type={type} style={tmStyles.formInput} placeholder={ph}
+                  value={label === "Name" ? invite.name : invite.email}
+                  onChange={e=>setInvite({...invite,[label === "Name" ? "name" : "email"]: e.target.value})} />
               </div>
             ))}
             <div style={{ marginBottom:16 }}>
               <div style={tmStyles.formLabel}>Rolle</div>
-              <select style={tmStyles.formInput}>
+              <select style={tmStyles.formInput} value={invite.role}
+                onChange={e=>setInvite({...invite,role:e.target.value})}>
                 {Object.entries(roleLabels).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div style={{ marginBottom:16 }}>
               <div style={tmStyles.formLabel}>Team</div>
-              <select style={tmStyles.formInput}>
+              <select style={tmStyles.formInput} value={invite.team}
+                onChange={e=>setInvite({...invite,team:e.target.value})}>
                 {["Außendienst","Gutachten","Leitung","Auftraggeber"].map(t=><option key={t}>{t}</option>)}
               </select>
             </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
               <button style={tmStyles.cancelBtn} onClick={() => setShowInvite(false)}>Abbrechen</button>
-              <button style={tmStyles.primaryBtn} onClick={() => setShowInvite(false)}>Einladung senden</button>
+              <button style={tmStyles.primaryBtn} onClick={inviteUser}
+                disabled={!invite.name.trim() || !invite.email.trim()}>Einladung senden</button>
             </div>
           </div>
         </div>
