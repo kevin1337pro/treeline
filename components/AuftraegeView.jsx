@@ -4,7 +4,9 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
   const [query, setQuery] = React.useState("");
   const [doneSteps, setDoneSteps] = React.useState({});
   const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
   const [draftOrder, setDraftOrder] = React.useState(() => emptyOrderDraft());
+  const [editOrderDraft, setEditOrderDraft] = React.useState(() => emptyOrderDraft());
   const activeOrderId = selectedOrderId || orders[0]?.id;
   const selectedOrder = orders.find(o => o.id === activeOrderId) || orders[0];
 
@@ -32,6 +34,21 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
       estimatedHours:8,
       priority:"normal",
       status:"geplant",
+    };
+  }
+
+  function orderToDraft(order) {
+    return {
+      title:order?.title || "",
+      client:order?.client || "",
+      street:order?.street || "",
+      city:order?.city || "",
+      description:order?.description || "",
+      scheduledDate:order?.scheduledDate || "",
+      startTime:order?.startTime || "",
+      estimatedHours:order?.estimatedHours || 0,
+      priority:order?.priority || "normal",
+      status:order?.status || "geplant",
     };
   }
 
@@ -101,6 +118,34 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
     onSelectOrder?.(order.id);
     setDraftOrder(emptyOrderDraft());
     setCreating(false);
+  }
+
+  function openEditOrder(order) {
+    setEditOrderDraft(orderToDraft(order));
+    setEditing(true);
+  }
+
+  function submitEditOrder(e) {
+    e.preventDefault();
+    if (!selectedOrder || !editOrderDraft.title.trim()) return;
+    const updated = {
+      title:editOrderDraft.title.trim(),
+      client:editOrderDraft.client.trim() || "Auftraggeber",
+      street:editOrderDraft.street.trim(),
+      city:editOrderDraft.city.trim(),
+      description:editOrderDraft.description.trim() || "Auftrag ohne Beschreibung.",
+      status:editOrderDraft.status,
+      priority:editOrderDraft.priority,
+      scheduledDate:editOrderDraft.scheduledDate,
+      startTime:editOrderDraft.startTime,
+      estimatedHours:Number(editOrderDraft.estimatedHours) || 0,
+      updatedAt:new Date().toISOString(),
+    };
+    Object.assign(selectedOrder, updated);
+    window.TREELINE_DB?.save();
+    window.TREELINE_DB?.saveOrder?.(selectedOrder).catch(err => console.warn("Appwrite order update failed; order is stored locally.", err));
+    onSelectOrder?.(selectedOrder.id);
+    setEditing(false);
   }
 
   if (!selectedOrder) {
@@ -174,6 +219,7 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
             <p style={ovStyles.sub}>{selectedOrder.description}</p>
           </div>
           <div style={ovStyles.headerActions}>
+            <button style={ovStyles.secondaryBtn} onClick={()=>openEditOrder(selectedOrder)}>Bearbeiten</button>
             <button style={ovStyles.mapBtn} onClick={()=>onOpenOrderMap?.(selectedOrder.id)}>In Karte öffnen</button>
             <span style={ovStyles.dateBadge}>{selectedOrder.scheduledDate} · {selectedOrder.startTime}</span>
             <span style={{...ovStyles.priorityBadge,color:"#E65100",background:"#FFF3E0"}}>{selectedOrder.priority}</span>
@@ -320,6 +366,13 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
                   <option value="kritisch">kritisch</option>
                 </select>
               </label>
+              <label style={ovStyles.fieldLabel}>Status
+                <select style={ovStyles.formInput} value={draftOrder.status} onChange={e=>setDraftOrder({...draftOrder,status:e.target.value})}>
+                  <option value="geplant">geplant</option>
+                  <option value="in_arbeit">in Arbeit</option>
+                  <option value="abgeschlossen">abgeschlossen</option>
+                </select>
+              </label>
             </div>
             <label style={ovStyles.fieldLabel}>Beschreibung
               <textarea style={{...ovStyles.formInput,minHeight:72,resize:"vertical"}} value={draftOrder.description} onChange={e=>setDraftOrder({...draftOrder,description:e.target.value})} placeholder="Arbeitsumfang, Besonderheiten, Hinweise" />
@@ -327,6 +380,66 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
             <div style={ovStyles.modalActions}>
               <button type="button" style={ovStyles.cancelBtn} onClick={()=>setCreating(false)}>Abbrechen</button>
               <button type="submit" style={ovStyles.primaryBtn} disabled={!draftOrder.title.trim()}>Auftrag erstellen</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editing && (
+        <div style={ovStyles.modalOverlay}>
+          <form style={ovStyles.modal} onSubmit={submitEditOrder}>
+            <div style={ovStyles.modalHeader}>
+              <div>
+                <div style={ovStyles.modalTitle}>Auftrag bearbeiten</div>
+                <div style={ovStyles.modalSub}>{selectedOrder.id} · Basisdaten, Termin und Status anpassen.</div>
+              </div>
+              <button type="button" style={ovStyles.closeBtn} onClick={()=>setEditing(false)} aria-label="Schließen">×</button>
+            </div>
+            <label style={ovStyles.fieldLabel}>Titel
+              <input style={ovStyles.formInput} value={editOrderDraft.title} onChange={e=>setEditOrderDraft({...editOrderDraft,title:e.target.value})} placeholder="z.B. Kronenpflege Musterstraße" autoFocus />
+            </label>
+            <div style={ovStyles.formGrid}>
+              <label style={ovStyles.fieldLabel}>Auftraggeber
+                <input style={ovStyles.formInput} value={editOrderDraft.client} onChange={e=>setEditOrderDraft({...editOrderDraft,client:e.target.value})} />
+              </label>
+              <label style={ovStyles.fieldLabel}>Ort
+                <input style={ovStyles.formInput} value={editOrderDraft.city} onChange={e=>setEditOrderDraft({...editOrderDraft,city:e.target.value})} />
+              </label>
+            </div>
+            <label style={ovStyles.fieldLabel}>Straße / Abschnitt
+              <input style={ovStyles.formInput} value={editOrderDraft.street} onChange={e=>setEditOrderDraft({...editOrderDraft,street:e.target.value})} placeholder="Straße, Hausnummer oder Abschnitt" />
+            </label>
+            <div style={ovStyles.formGrid}>
+              <label style={ovStyles.fieldLabel}>Datum
+                <input style={ovStyles.formInput} type="date" value={editOrderDraft.scheduledDate} onChange={e=>setEditOrderDraft({...editOrderDraft,scheduledDate:e.target.value})} />
+              </label>
+              <label style={ovStyles.fieldLabel}>Start
+                <input style={ovStyles.formInput} type="time" value={editOrderDraft.startTime} onChange={e=>setEditOrderDraft({...editOrderDraft,startTime:e.target.value})} />
+              </label>
+              <label style={ovStyles.fieldLabel}>Dauer
+                <input style={ovStyles.formInput} type="number" min="0" step="0.5" value={editOrderDraft.estimatedHours} onChange={e=>setEditOrderDraft({...editOrderDraft,estimatedHours:e.target.value})} />
+              </label>
+              <label style={ovStyles.fieldLabel}>Priorität
+                <select style={ovStyles.formInput} value={editOrderDraft.priority} onChange={e=>setEditOrderDraft({...editOrderDraft,priority:e.target.value})}>
+                  <option value="normal">normal</option>
+                  <option value="hoch">hoch</option>
+                  <option value="kritisch">kritisch</option>
+                </select>
+              </label>
+              <label style={ovStyles.fieldLabel}>Status
+                <select style={ovStyles.formInput} value={editOrderDraft.status} onChange={e=>setEditOrderDraft({...editOrderDraft,status:e.target.value})}>
+                  <option value="geplant">geplant</option>
+                  <option value="in_arbeit">in Arbeit</option>
+                  <option value="abgeschlossen">abgeschlossen</option>
+                </select>
+              </label>
+            </div>
+            <label style={ovStyles.fieldLabel}>Beschreibung
+              <textarea style={{...ovStyles.formInput,minHeight:72,resize:"vertical"}} value={editOrderDraft.description} onChange={e=>setEditOrderDraft({...editOrderDraft,description:e.target.value})} placeholder="Arbeitsumfang, Besonderheiten, Hinweise" />
+            </label>
+            <div style={ovStyles.modalActions}>
+              <button type="button" style={ovStyles.cancelBtn} onClick={()=>setEditing(false)}>Abbrechen</button>
+              <button type="submit" style={ovStyles.primaryBtn} disabled={!editOrderDraft.title.trim()}>Änderungen speichern</button>
             </div>
           </form>
         </div>
@@ -380,6 +493,7 @@ const ovStyles = {
   title:{fontSize:27,fontWeight:800,color:"#1a1a18",margin:0,letterSpacing:"-0.4px"},
   sub:{fontSize:14,color:"#666",lineHeight:1.5,marginTop:6,maxWidth:760},
   headerActions:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"},
+  secondaryBtn:{padding:"8px 12px",background:"#fff",color:"#1D7A56",border:"1px solid #B8DDCB",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer"},
   mapBtn:{padding:"8px 12px",background:"#1D7A56",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer"},
   dateBadge:{padding:"7px 12px",background:"#fff",border:"1px solid #e5e5e0",borderRadius:8,fontSize:12,fontWeight:700,color:"#333"},
   priorityBadge:{padding:"7px 12px",borderRadius:8,fontSize:12,fontWeight:700,textTransform:"uppercase"},

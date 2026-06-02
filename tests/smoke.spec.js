@@ -58,6 +58,17 @@ test("sample order shows crew, vehicles and tree route", async ({ page }) => {
   await expect(page.getByText("Rechte Straßenseite", { exact: true })).toBeVisible();
 });
 
+test("existing order can be edited", async ({ page }) => {
+  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: "Aufträge" }).first().click();
+  await page.getByRole("button", { name: "Bearbeiten" }).click();
+  await page.locator("input[placeholder='z.B. Kronenpflege Musterstraße']").fill("Kronenpflege Gahlener Straße aktualisiert");
+  await page.getByRole("button", { name: "Änderungen speichern" }).click();
+
+  await expect(page.getByRole("heading", { name: "Kronenpflege Gahlener Straße aktualisiert" })).toBeVisible();
+  await expect(page.getByText("Kronenpflege Gahlener Straße aktualisiert").first()).toBeVisible();
+});
+
 test("order creation opens the selected order on the map", async ({ page }) => {
   await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
   await page.getByRole("button", { name: "Aufträge" }).first().click();
