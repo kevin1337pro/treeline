@@ -66,7 +66,7 @@ Die Smoke-Tests starten bei Bedarf den lokalen Server und pruefen Login, Navigat
 
 - Frontend: React 18 ueber UMD-Skripte
 - Transpilation im Browser: Babel Standalone
-- Kartenfunktion: Leaflet
+- Kartenfunktion: Mapbox GL JS
 - Datenhaltung: lokale Mock-Daten in `components/data.js`
 - Persistenz: teilweise ueber `localStorage`
 - Auftragsplanung: eigene Ansicht fuer Einsatzplanung, Team-/Fahrzeugpruefung und Baumroute
@@ -83,6 +83,17 @@ Die App enthaelt einen Beispielauftrag fuer die Gahlener Strasse in Dorsten:
 - Baumroute links/rechts entlang der Strasse mit direkter Baumprofil-Oeffnung
 
 Die Ansicht `Auftraege` ist fuer die Buero-Planung und fuer die Bearbeitung draussen optimiert.
+
+## Mapbox
+
+Die Kartenansicht nutzt Mapbox GL JS mit umschaltbaren Kartenstilen:
+
+- Satellit mit Strassennamen fuer konkrete Arbeiten draussen
+- Strassenkarte fuer Disposition und Suche
+- Outdoor-Karte fuer Gelaende- und Umfeldbezug
+- helle Buerokarte fuer Planung
+
+Der Public Token liegt in `components/mapbox.config.js`. In Mapbox sollte dieser Token auf die erlaubten Domains beschraenkt werden, zum Beispiel `localhost` und `kevin1337pro.github.io`.
 
 ## Appwrite Setup
 

@@ -25,6 +25,10 @@ test("login and primary navigation render without browser errors", async ({ page
     await expect(page.getByText(label).first()).toBeVisible();
   }
 
+  await page.getByRole("button", { name: "Karte" }).first().click();
+  await expect(page.getByRole("button", { name: "Satellit" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Auftrag fokussieren" })).toBeVisible();
+
   expect(browserErrors).toEqual([]);
 });
 

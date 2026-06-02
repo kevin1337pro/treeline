@@ -28,6 +28,12 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Configure Mapbox
+        run: |
+          printf 'window.TREELINE_MAPBOX_TOKEN = "%s";\n' "$MAPBOX_PUBLIC_TOKEN" > components/mapbox.config.js
+        env:
+          MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
