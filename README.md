@@ -95,12 +95,13 @@ Die Kartenansicht nutzt Mapbox GL JS mit umschaltbaren Kartenstilen:
 - 3D-Schalter fuer Terrain/Pitch und 3D-Gebaeude, soweit Mapbox-Daten verfuegbar sind
 - Werkzeugpanel fuer Auswahl, Baum setzen und Route zeichnen
 - Routenpunkte koennen rueckgaengig gemacht, geloescht oder lokal gespeichert werden
+- Auftrag direkt in der Karte auswaehlen und auf Baumroute oder Adresse fokussieren
 
 Der Public Token wird beim GitHub-Pages-Deploy aus dem Actions Secret `MAPBOX_PUBLIC_TOKEN` in `components/mapbox.config.js` geschrieben. Lokal kann fuer Entwicklung alternativ `localStorage.treeline_mapbox_token` gesetzt werden. In Mapbox sollte dieser Token auf die erlaubten Domains beschraenkt werden, zum Beispiel `localhost` und `kevin1337pro.github.io`.
 
 ## Appwrite Setup
 
-Das Skript legt die Datenbank `treeline` und Collections fuer `trees`, `orders`, `measures`, `users`, `vehicles`, `equipment`, `plantings` und `media` an. Es braucht ein vorhandenes Appwrite-Projekt und einen API-Key:
+Das Skript legt die Datenbank `treeline` und Collections fuer `trees`, `orders`, `measures`, `users`, `vehicles`, `equipment`, `routes`, `plantings` und `media` an. Es braucht ein vorhandenes Appwrite-Projekt und einen API-Key:
 
 ```bash
 export APPWRITE_ENDPOINT="https://<REGION>.cloud.appwrite.io/v1"

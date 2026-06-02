@@ -20,6 +20,8 @@
     /* Mobile responsive */
     @media (max-width: 768px) {
       .sidebar-desktop {
+        top: 52px !important;
+        height: calc(100vh - 52px) !important;
         transform: translateX(-100%);
         box-shadow: 12px 0 30px rgba(0,0,0,0.14);
       }
@@ -31,6 +33,70 @@
       .two-col { grid-template-columns: 1fr !important; }
       .meta-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .kanban { grid-template-columns: 1fr !important; }
+      .app-top-bar {
+        padding: 0 10px !important;
+      }
+      .app-top-right {
+        gap: 6px !important;
+      }
+      .global-search {
+        display: none !important;
+      }
+      .orders-shell {
+        height: auto !important;
+        min-height: 100% !important;
+        overflow: visible !important;
+        flex-direction: column !important;
+      }
+      .orders-list {
+        width: 100% !important;
+        min-width: 0 !important;
+        height: auto !important;
+        max-height: 42vh !important;
+        border-right: none !important;
+        border-bottom: 1px solid #e5e5e0 !important;
+      }
+      .orders-detail {
+        padding: 16px !important;
+        overflow: visible !important;
+      }
+      .orders-detail h1 {
+        font-size: 22px !important;
+      }
+      .map-shell {
+        height: calc(100vh - 52px) !important;
+      }
+      .map-toolbar {
+        gap: 8px !important;
+        padding: 8px !important;
+        max-height: 35vh !important;
+        overflow-y: auto !important;
+      }
+      .map-toolbar select,
+      .map-toolbar form {
+        min-width: 0 !important;
+        width: 100% !important;
+        flex-basis: 100% !important;
+      }
+      .map-body {
+        flex-direction: column !important;
+      }
+      .map-canvas {
+        min-height: 54vh !important;
+      }
+      .map-tool-panel {
+        left: 8px !important;
+        right: 8px !important;
+        top: 8px !important;
+        width: auto !important;
+        max-width: none !important;
+      }
+      .map-side-panel {
+        width: 100% !important;
+        max-height: 38vh !important;
+        border-left: none !important;
+        border-top: 1px solid #e5e5e0 !important;
+      }
     }
   </style>
 </head>

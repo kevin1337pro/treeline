@@ -1,18 +1,21 @@
 function App() {
   const savedPage = localStorage.getItem("treeline_nav") || "login";
   const savedTree = localStorage.getItem("treeline_selectedTree") || null;
+  const savedOrder = localStorage.getItem("treeline_selectedOrder") || null;
   const savedUser = (() => { try { return JSON.parse(localStorage.getItem("treeline_user")); } catch(e){return null;} })();
 
   const [loggedIn, setLoggedIn] = React.useState(!!savedUser);
   const [currentUser, setCurrentUser] = React.useState(savedUser || null);
   const [page, setPage] = React.useState(savedUser ? (savedPage === "login" ? "dashboard" : savedPage) : "login");
   const [selectedTreeId, setSelectedTreeId] = React.useState(savedTree);
+  const [selectedOrderId, setSelectedOrderId] = React.useState(savedOrder || MOCK_DATA.orders?.[0]?.id || null);
   const [tweaksVisible, setTweaksVisible] = React.useState(false);
   const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = React.useState(() => window.innerWidth > 768);
 
   React.useEffect(() => { localStorage.setItem("treeline_nav", page); }, [page]);
   React.useEffect(() => { if (selectedTreeId) localStorage.setItem("treeline_selectedTree", selectedTreeId); }, [selectedTreeId]);
+  React.useEffect(() => { if (selectedOrderId) localStorage.setItem("treeline_selectedOrder", selectedOrderId); }, [selectedOrderId]);
 
   React.useEffect(() => {
     function handleMessage(e) {
@@ -50,11 +53,21 @@ function App() {
   function handleNav(id) {
     setPage(id);
     if (id === "trees" && !selectedTreeId) setSelectedTreeId(MOCK_DATA.trees[0]?.id);
+    if (window.innerWidth <= 768) setSidebarOpen(false);
   }
 
   function handleSelectTree(id) {
     setSelectedTreeId(id);
     setPage("trees");
+  }
+
+  function handleSelectOrder(id) {
+    setSelectedOrderId(id);
+  }
+
+  function handleOpenOrderMap(id) {
+    setSelectedOrderId(id);
+    setPage("map");
   }
 
   if (!loggedIn) {
@@ -76,17 +89,18 @@ function App() {
       <div className="main-content" style={{ marginLeft: sidebarOpen ? 220 : 56, flex:1, display:"flex", flexDirection:"column",
         minHeight:"100vh", transition:"margin-left 0.2s" }}>
         {/* Top bar */}
-        <div style={appStyles.topBar}>
+        <div className="app-top-bar" style={appStyles.topBar}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <button style={appStyles.menuBtn} onClick={() => setSidebarOpen(o => !o)}>
+            <button style={appStyles.menuBtn} onClick={() => setSidebarOpen(o => !o)}
+              aria-label={sidebarOpen ? "Navigation schließen" : "Navigation öffnen"} title="Navigation">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
               </svg>
             </button>
             <div style={appStyles.topTitle}>{pageTitle[page]}</div>
           </div>
-          <div style={appStyles.topRight}>
-            <div style={appStyles.searchWrap}>
+          <div className="app-top-right" style={appStyles.topRight}>
+            <div className="global-search" style={appStyles.searchWrap}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2.5">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
@@ -111,8 +125,8 @@ function App() {
         {/* Content */}
         <div style={{ flex:1, overflowY: page==="map"||page==="trees"||page==="pflanzung" ? "hidden" : "auto" }}>
           {page==="dashboard" && <Dashboard currentUser={user} onNav={handleNav} onSelectTree={handleSelectTree}/>}
-          {page==="orders"    && <AuftraegeView onSelectTree={handleSelectTree}/>}
-          {page==="map"       && <MapView onSelectTree={handleSelectTree}/>}
+          {page==="orders"    && <AuftraegeView selectedOrderId={selectedOrderId} onSelectOrder={handleSelectOrder} onOpenOrderMap={handleOpenOrderMap} onSelectTree={handleSelectTree}/>}
+          {page==="map"       && <MapView selectedOrderId={selectedOrderId} onSelectOrder={handleSelectOrder} onSelectTree={handleSelectTree}/>}
           {page==="trees"     && <TreesView selectedTreeId={selectedTreeId} onSelectTree={setSelectedTreeId}/>}
           {page==="measures"  && <MassnahmenView/>}
           {page==="pflanzung" && <PflanzungView/>}

@@ -58,6 +58,37 @@ test("sample order shows crew, vehicles and tree route", async ({ page }) => {
   await expect(page.getByText("Rechte Straßenseite", { exact: true })).toBeVisible();
 });
 
+test("order creation opens the selected order on the map", async ({ page }) => {
+  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: "Aufträge" }).first().click();
+  await page.getByRole("button", { name: "Neuer Auftrag" }).click();
+  await page.locator("input[placeholder='z.B. Kronenpflege Musterstraße']").fill("Kronenpflege Testallee");
+  await page.locator("input[placeholder='Straße, Hausnummer oder Abschnitt']").fill("Testallee 12");
+  await page.getByRole("button", { name: "Auftrag erstellen" }).click();
+
+  await expect(page.getByText("Kronenpflege Testallee").first()).toBeVisible();
+  await page.getByRole("button", { name: "In Karte öffnen" }).click();
+
+  await expect(page.getByLabel("Auftrag auf Karte auswählen")).toContainText("Kronenpflege Testallee");
+});
+
+test("mobile order and map controls stay reachable", async ({ page }) => {
+  await page.setViewportSize({ width:390, height:844 });
+  await page.goto("/treeline.html");
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Navigation öffnen/ }).click();
+  await page.getByRole("button", { name: "Aufträge" }).first().click();
+
+  await expect(page.getByRole("button", { name: "Neuer Auftrag" })).toBeVisible();
+
+  await page.getByRole("button", { name: /Navigation öffnen/ }).click();
+  await page.getByRole("button", { name: "Karte" }).first().click();
+  await expect(page.getByLabel("Auftrag auf Karte auswählen")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Route zeichnen" })).toBeVisible();
+});
+
 test("team invite adds and selects a user", async ({ page }) => {
   await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
   await page.getByRole("button", { name: "Team" }).first().click();

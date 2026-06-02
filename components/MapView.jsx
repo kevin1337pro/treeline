@@ -1,14 +1,16 @@
-function MapView({ onSelectTree }) {
+function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
   const mapRef = React.useRef(null);
   const mapboxMap = React.useRef(null);
   const popupRef = React.useRef(null);
   const addModeRef = React.useRef(false);
   const toolModeRef = React.useRef("select");
   const routeDraftRef = React.useRef([]);
+  const selectedOrderRef = React.useRef(null);
+  const routeStorageKeyRef = React.useRef("treeline_route_draft_default");
   const listenersAttached = React.useRef(false);
   const [selectedTree, setSelectedTree] = React.useState(null);
   const [filter, setFilter] = React.useState("all");
-  const [placeQuery, setPlaceQuery] = React.useState("Gahlener Straße Dorsten AUF-2026-001");
+  const [placeQuery, setPlaceQuery] = React.useState("");
   const [placeStatus, setPlaceStatus] = React.useState("");
   const [mapStyle, setMapStyle] = React.useState("mapbox://styles/mapbox/satellite-streets-v12");
   const [toolMode, setToolMode] = React.useState("select");
@@ -35,21 +37,55 @@ function MapView({ onSelectTree }) {
     ["mapbox://styles/mapbox/light-v11", "Büro"],
   ];
 
-  const selectedOrder = orders.find(o => o.id === "AUF-2026-001") || orders[0];
+  const selectedOrder = orders.find(o => o.id === selectedOrderId) || orders[0];
+  const routeStorageKey = `treeline_route_draft_${selectedOrder?.id || "default"}`;
   const [routeDraft, setRouteDraft] = React.useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("treeline_route_draft"));
+      const initialOrderId = selectedOrderId || orders[0]?.id || "default";
+      const saved = JSON.parse(localStorage.getItem(`treeline_route_draft_${initialOrderId}`));
       if (Array.isArray(saved) && saved.length) return saved;
     } catch (e) {}
     return [];
   });
   const [routeSavedAt, setRouteSavedAt] = React.useState("");
-  const planningRoute = routeDraft.length ? routeDraft : getOrderCoordinates();
-  const toolLabel = { select:"Auswahl", tree:"Baum", route:"Route" };
+  const planningRoute = routeDraft.length ? routeDraft : getOrderPlanningCoordinates(selectedOrder);
 
   React.useEffect(() => {
     routeDraftRef.current = routeDraft;
   }, [routeDraft]);
+
+  React.useEffect(() => {
+    selectedOrderRef.current = selectedOrder;
+    routeStorageKeyRef.current = routeStorageKey;
+  }, [selectedOrder?.id, routeStorageKey]);
+
+  React.useEffect(() => {
+    if (!selectedOrder) return;
+    setPlaceQuery(orderSearchText(selectedOrder));
+    setSelectedTree(null);
+    popupRef.current?.remove();
+    setShowAddForm(false);
+    setClickCoords(null);
+    let restoredDraft = [];
+    try {
+      const saved = JSON.parse(localStorage.getItem(routeStorageKey));
+      const next = Array.isArray(saved) ? saved : [];
+      restoredDraft = next;
+      routeDraftRef.current = next;
+      setRouteDraft(next);
+    } catch (e) {
+      routeDraftRef.current = [];
+      setRouteDraft([]);
+    }
+    window.setTimeout(() => {
+      if (restoredDraft.length) {
+        fitOrderBounds(selectedOrder, restoredDraft);
+        setPlaceStatus(`${selectedOrder.id} fokussiert.`);
+        return;
+      }
+      focusOrder(selectedOrder, { silent:false });
+    }, 80);
+  }, [selectedOrder?.id]);
 
   React.useEffect(() => {
     if (mapboxMap.current || !mapRef.current) return;
@@ -63,7 +99,7 @@ function MapView({ onSelectTree }) {
     }
 
     mapboxgl.accessToken = mapboxToken;
-    const orderCenter = getOrderCoordinates()[0] || [6.96559, 51.59683];
+    const orderCenter = getOrderCoordinates(null, selectedOrder)[0] || [6.96559, 51.59683];
     const map = new mapboxgl.Map({
       container: mapRef.current,
       style: mapStyle,
@@ -85,7 +121,7 @@ function MapView({ onSelectTree }) {
     map.on("load", () => {
       addMapSourcesAndLayers();
       attachMapListeners();
-      fitOrderBounds();
+      focusOrder(selectedOrder, { silent:true });
     });
 
     return () => {
@@ -118,7 +154,7 @@ function MapView({ onSelectTree }) {
 
   React.useEffect(() => {
     updateMapData();
-  }, [filter, selectedTree?.id, clickCoords?.lat, clickCoords?.lng, trees.length, routeDraft]);
+  }, [filter, selectedOrder?.id, selectedTree?.id, clickCoords?.lat, clickCoords?.lng, trees.length, routeDraft]);
 
   React.useEffect(() => {
     apply3DMode();
@@ -191,16 +227,27 @@ function MapView({ onSelectTree }) {
     };
   }
 
-  function getOrderTrees(side) {
-    if (!selectedOrder) return [];
-    return selectedOrder.treeIds
+  function getOrderTrees(side, order = selectedOrder) {
+    if (!order) return [];
+    return (order.treeIds || [])
       .map(id => trees.find(t => t.id === id))
       .filter(t => t && (!side || t.routeSide === side))
       .sort((a, b) => (a.routeIndex || 0) - (b.routeIndex || 0));
   }
 
-  function getOrderCoordinates() {
-    return getOrderTrees().map(t => [t.lng, t.lat]);
+  function getOrderCoordinates(side, order = selectedOrder) {
+    return getOrderTrees(side, order).map(t => [t.lng, t.lat]);
+  }
+
+  function getOrderPlanningCoordinates(order = selectedOrder) {
+    if (!order) return [];
+    if (Array.isArray(order.planningRoute) && order.planningRoute.length) return order.planningRoute;
+    return getOrderCoordinates(null, order);
+  }
+
+  function orderSearchText(order = selectedOrder) {
+    if (!order) return "";
+    return [order.street, order.city, order.id].filter(Boolean).join(" ");
   }
 
   function addMapSourcesAndLayers() {
@@ -376,7 +423,7 @@ function MapView({ onSelectTree }) {
         const next = [...routeDraftRef.current, [Number(e.lngLat.lng.toFixed(6)), Number(e.lngLat.lat.toFixed(6))]];
         routeDraftRef.current = next;
         setRouteDraft(next);
-        localStorage.setItem("treeline_route_draft", JSON.stringify(next));
+        localStorage.setItem(routeStorageKeyRef.current, JSON.stringify(next));
         setPlaceStatus(`Routenpunkt ${next.length} gesetzt.`);
         return;
       }
@@ -384,12 +431,13 @@ function MapView({ onSelectTree }) {
       const features = map.queryRenderedFeatures(e.point, { layers:["treeline-tree-circle"] });
       if (features.length) return;
       setClickCoords({ lat:e.lngLat.lat, lng:e.lngLat.lng });
+      const activeOrder = selectedOrderRef.current;
       setNewTreeData(prev => ({
         ...prev,
-        orderId: selectedOrder?.id || "",
-        routeIndex: nextRouteIndex(prev.routeSide || "links"),
-        tags: prev.tags || (selectedOrder ? `Auftrag ${selectedOrder.id}, Straßenbaum` : ""),
-        owner: prev.owner || selectedOrder?.client || "",
+        orderId: activeOrder?.id || "",
+        routeIndex: nextRouteIndex(prev.routeSide || "links", activeOrder?.id),
+        tags: prev.tags || (activeOrder ? `Auftrag ${activeOrder.id}, Straßenbaum` : ""),
+        owner: prev.owner || activeOrder?.client || "",
         standort:`${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}`,
       }));
       setShowAddForm(true);
@@ -443,12 +491,48 @@ function MapView({ onSelectTree }) {
     }
   }
 
-  function fitOrderBounds() {
+  function fitOrderBounds(order = selectedOrder, coordsOverride = null) {
     const map = mapboxMap.current;
-    const coords = planningRoute.length ? planningRoute : getOrderCoordinates();
+    const coords = coordsOverride || (order?.id === selectedOrder?.id ? planningRoute : getOrderPlanningCoordinates(order));
     if (!map || !coords.length) return;
     const bounds = coords.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coords[0], coords[0]));
     map.fitBounds(bounds, { padding:80, maxZoom:17.4, duration:700 });
+  }
+
+  async function focusOrder(order = selectedOrder, options = {}) {
+    if (!order) return;
+    const map = mapboxMap.current;
+    if (!map) return;
+    const coords = order.id === selectedOrder?.id ? planningRoute : getOrderPlanningCoordinates(order);
+    if (coords.length) {
+      fitOrderBounds(order, coords);
+      if (!options.silent) setPlaceStatus(`${order.id} fokussiert.`);
+      return;
+    }
+
+    const query = [order.street, order.city].filter(Boolean).join(", ");
+    if (!query || !mapboxToken) {
+      if (!options.silent) setPlaceStatus("Auftrag hat noch keine Baumpositionen oder Adresse.");
+      return;
+    }
+
+    if (!options.silent) setPlaceStatus("Auftragsadresse wird gesucht...");
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?country=de&limit=1&language=de&access_token=${encodeURIComponent(mapboxToken)}`;
+      const res = await fetch(url, { headers:{ Accept:"application/json" } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const feature = data.features?.[0];
+      if (!feature) {
+        if (!options.silent) setPlaceStatus("Auftragsadresse nicht gefunden.");
+        return;
+      }
+      map.flyTo({ center:feature.center, zoom:16.5, pitch:threeDEnabled ? 58 : 42, duration:800 });
+      if (!options.silent) setPlaceStatus(`${order.id} fokussiert.`);
+    } catch (err) {
+      console.warn("Mapbox order focus failed.", err);
+      if (!options.silent) setPlaceStatus("Auftragsadresse konnte nicht fokussiert werden.");
+    }
   }
 
   function selectTree(tree) {
@@ -487,8 +571,8 @@ function MapView({ onSelectTree }) {
       return haystack.includes(q.toLowerCase());
     });
     if (localOrder) {
-      setPlaceStatus("Auftrag gefunden.");
-      fitOrderBounds();
+      onSelectOrder?.(localOrder.id);
+      await focusOrder(localOrder);
       return;
     }
 
@@ -538,12 +622,13 @@ function MapView({ onSelectTree }) {
       createdAt:new Date().toISOString().slice(0, 10),
       orderId:newTreeData.orderId || null,
       routeSide:newTreeData.orderId ? newTreeData.routeSide : null,
-      routeIndex:newTreeData.orderId ? Number(newTreeData.routeIndex) || nextRouteIndex(newTreeData.routeSide) : null,
+      routeIndex:newTreeData.orderId ? Number(newTreeData.routeIndex) || nextRouteIndex(newTreeData.routeSide, newTreeData.orderId) : null,
     };
     MOCK_DATA.trees.push(tree);
     if (tree.orderId) {
       const order = orders.find(o => o.id === tree.orderId);
       if (order && !order.treeIds.includes(tree.id)) order.treeIds.push(tree.id);
+      if (order) window.TREELINE_DB?.saveOrder?.(order).catch(err => console.warn("Appwrite order update failed; tree assignment is stored locally.", err));
     }
     window.TREELINE_DB?.save();
     window.TREELINE_DB?.saveTree?.(tree).catch(err => {
@@ -564,23 +649,25 @@ function MapView({ onSelectTree }) {
     setNewTreeData(emptyTreeData);
   }
 
-  function nextRouteIndex(side) {
+  function nextRouteIndex(side, orderId = selectedOrder?.id) {
     const indexes = trees
-      .filter(t => t.orderId === selectedOrder?.id && t.routeSide === side)
+      .filter(t => t.orderId === orderId && t.routeSide === side)
       .map(t => Number(t.routeIndex) || 0);
     return Math.max(0, ...indexes) + 1;
   }
 
   function undoRoutePoint() {
     const next = routeDraft.slice(0, -1);
+    routeDraftRef.current = next;
     setRouteDraft(next);
-    localStorage.setItem("treeline_route_draft", JSON.stringify(next));
+    localStorage.setItem(routeStorageKey, JSON.stringify(next));
     setPlaceStatus(next.length ? `Routenpunkt entfernt. ${next.length} Punkte bleiben.` : "Route geleert.");
   }
 
   function clearRouteDraft() {
+    routeDraftRef.current = [];
     setRouteDraft([]);
-    localStorage.removeItem("treeline_route_draft");
+    localStorage.removeItem(routeStorageKey);
     setPlaceStatus("Gezeichnete Route gelöscht. Auftragsroute wird wieder angezeigt.");
   }
 
@@ -622,9 +709,14 @@ function MapView({ onSelectTree }) {
   }
 
   return (
-    <div style={{display:"flex",height:"100vh",flexDirection:"column"}}>
-      <div style={mvStyles.toolbar}>
+    <div className="map-shell" style={{display:"flex",height:"100vh",flexDirection:"column"}}>
+      <div className="map-toolbar" style={mvStyles.toolbar}>
         <span style={mvStyles.toolbarTitle}>Karte</span>
+        <select style={mvStyles.orderSelect} value={selectedOrder?.id || ""}
+          aria-label="Auftrag auf Karte auswählen"
+          onChange={e => onSelectOrder?.(e.target.value)}>
+          {orders.map(order => <option key={order.id} value={order.id}>{order.id} · {order.title}</option>)}
+        </select>
         <form style={mvStyles.placeSearch} onSubmit={handlePlaceSearch}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#777" strokeWidth="2.5">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -654,13 +746,13 @@ function MapView({ onSelectTree }) {
           ))}
         </div>
         <button style={mvStyles.orderBtn} onClick={()=>setThreeDEnabled(v => !v)}>{threeDEnabled ? "2D" : "3D"}</button>
-        <button style={mvStyles.orderBtn} onClick={fitOrderBounds}>Auftrag fokussieren</button>
+        <button style={mvStyles.orderBtn} onClick={()=>focusOrder(selectedOrder)}>Auftrag fokussieren</button>
       </div>
 
-      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        <div ref={mapRef} style={{flex:1,background:"#eef1ef",position:"relative"}}>
+      <div className="map-body" style={{display:"flex",flex:1,overflow:"hidden"}}>
+        <div className="map-canvas" ref={mapRef} style={{flex:1,background:"#eef1ef",position:"relative"}}>
           {!mapboxToken && <div style={mvStyles.mapFallback}>Mapbox Token fehlt.</div>}
-          <div style={mvStyles.toolPanel}>
+          <div className="map-tool-panel" style={mvStyles.toolPanel}>
             <div style={mvStyles.toolTitle}>Werkzeug</div>
             <div style={mvStyles.toolModes}>
               {[["select","Auswählen"],["tree","Baum setzen"],["route","Route zeichnen"]].map(([mode,label]) => (
@@ -688,7 +780,7 @@ function MapView({ onSelectTree }) {
         </div>
 
         {showAddForm && (
-          <div style={mvStyles.addPanel}>
+          <div className="map-side-panel" style={mvStyles.addPanel}>
             <div style={mvStyles.addPanelTitle}>Neuer Baum</div>
             <div style={mvStyles.addCoords}>{clickCoords?.lat.toFixed(5)}, {clickCoords?.lng.toFixed(5)}</div>
             <div style={mvStyles.fLabel}>Bezeichnung</div>
@@ -710,7 +802,7 @@ function MapView({ onSelectTree }) {
               <div>
                 <div style={mvStyles.fLabel}>Auftrag</div>
                 <select style={mvStyles.fInput} value={newTreeData.orderId}
-                  onChange={e=>setNewTreeData({...newTreeData,orderId:e.target.value,routeIndex:nextRouteIndex(newTreeData.routeSide)})}>
+                  onChange={e=>setNewTreeData({...newTreeData,orderId:e.target.value,routeIndex:nextRouteIndex(newTreeData.routeSide, e.target.value)})}>
                   <option value="">Kein Auftrag</option>
                   {orders.map(o=><option key={o.id} value={o.id}>{o.id}</option>)}
                 </select>
@@ -718,7 +810,7 @@ function MapView({ onSelectTree }) {
               <div>
                 <div style={mvStyles.fLabel}>Straßenseite</div>
                 <select style={mvStyles.fInput} value={newTreeData.routeSide}
-                  onChange={e=>setNewTreeData({...newTreeData,routeSide:e.target.value,routeIndex:nextRouteIndex(e.target.value)})}>
+                  onChange={e=>setNewTreeData({...newTreeData,routeSide:e.target.value,routeIndex:nextRouteIndex(e.target.value, newTreeData.orderId || selectedOrder?.id)})}>
                   <option value="links">links</option>
                   <option value="rechts">rechts</option>
                 </select>
@@ -761,7 +853,7 @@ function MapView({ onSelectTree }) {
         )}
 
         {selectedTree && !showAddForm && (
-          <div style={mvStyles.panel}>
+          <div className="map-side-panel" style={mvStyles.panel}>
             <div style={mvStyles.panelHeader}>
               <div>
                 <div style={mvStyles.panelId}>{selectedTree.id}</div>
@@ -812,6 +904,8 @@ const mvStyles = {
   toolbar:        {display:"flex",alignItems:"center",gap:10,padding:"10px 16px",
                    background:"#fff",borderBottom:"1px solid #e5e5e0",flexWrap:"wrap"},
   toolbarTitle:   {fontSize:15,fontWeight:700,color:"#1a1a18",marginRight:4},
+  orderSelect:    {minWidth:260,flex:"0 1 360px",padding:"7px 10px",border:"1px solid #e0e0dc",
+                   borderRadius:8,background:"#fff",fontSize:12,fontWeight:700,color:"#333",outline:"none"},
   placeSearch:    {display:"flex",alignItems:"center",gap:8,background:"#f5f5f3",
                    border:"1px solid #e2e2dc",borderRadius:8,padding:"5px 7px 5px 10px",
                    minWidth:320,flex:"1 1 340px"},
