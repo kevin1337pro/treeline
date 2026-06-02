@@ -147,9 +147,24 @@ function TreesView({ selectedTreeId, onSelectTree }) {
 
   function TreeForm({ value, onChange }) {
     const set = (key, val) => onChange({ ...value, [key]: val });
+    const setName = val => {
+      const latin = window.TREELINE_SPECIES?.getLatinName(val) || "";
+      const previousLatin = window.TREELINE_SPECIES?.getLatinName(value.name) || "";
+      onChange({
+        ...value,
+        name: val,
+        species: latin && (!value.species || value.species === previousLatin) ? latin : value.species,
+      });
+    };
     return (
       <div style={tvStyles.formGrid}>
-        <Field label="Name / Baumart" required><input style={tvStyles.fInput} value={value.name} onChange={e=>set("name", e.target.value)} placeholder="z.B. Stieleiche"/></Field>
+        <Field label="Name / Baumart" required>
+          <input style={tvStyles.fInput} value={value.name} onChange={e=>setName(e.target.value)}
+            list="treeline-tree-species" placeholder="z.B. Stieleiche"/>
+          <datalist id="treeline-tree-species">
+            {(window.TREELINE_TREE_SPECIES || []).map(item => <option key={item.name} value={item.name} />)}
+          </datalist>
+        </Field>
         <Field label="Lateinische Art"><input style={tvStyles.fInput} value={value.species} onChange={e=>set("species", e.target.value)} placeholder="Quercus robur"/></Field>
         <Field label="Standort" wide><input style={tvStyles.fInput} value={value.standort} onChange={e=>set("standort", e.target.value)} placeholder="Adresse oder Standortbeschreibung"/></Field>
         <Field label="Status"><select style={tvStyles.fInput} value={value.status} onChange={e=>set("status", e.target.value)}>{Object.entries(statusLabel).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></Field>

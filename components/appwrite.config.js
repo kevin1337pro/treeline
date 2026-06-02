@@ -10,6 +10,7 @@ window.TREELINE_APPWRITE_CONFIG = {
     users: "users",
     vehicles: "vehicles",
     equipment: "equipment",
+    routes: "routes",
     plantings: "plantings",
     media: "media",
   },

@@ -4,6 +4,7 @@ function MapView({ onSelectTree }) {
   const popupRef = React.useRef(null);
   const addModeRef = React.useRef(false);
   const toolModeRef = React.useRef("select");
+  const routeDraftRef = React.useRef([]);
   const listenersAttached = React.useRef(false);
   const [selectedTree, setSelectedTree] = React.useState(null);
   const [filter, setFilter] = React.useState("all");
@@ -45,6 +46,10 @@ function MapView({ onSelectTree }) {
   const [routeSavedAt, setRouteSavedAt] = React.useState("");
   const planningRoute = routeDraft.length ? routeDraft : getOrderCoordinates();
   const toolLabel = { select:"Auswahl", tree:"Baum", route:"Route" };
+
+  React.useEffect(() => {
+    routeDraftRef.current = routeDraft;
+  }, [routeDraft]);
 
   React.useEffect(() => {
     if (mapboxMap.current || !mapRef.current) return;
@@ -113,7 +118,7 @@ function MapView({ onSelectTree }) {
 
   React.useEffect(() => {
     updateMapData();
-  }, [filter, selectedTree?.id, clickCoords?.lat, clickCoords?.lng, trees.length, routeDraft.length]);
+  }, [filter, selectedTree?.id, clickCoords?.lat, clickCoords?.lng, trees.length, routeDraft]);
 
   React.useEffect(() => {
     apply3DMode();
@@ -368,7 +373,8 @@ function MapView({ onSelectTree }) {
     });
     map.on("click", e => {
       if (toolModeRef.current === "route") {
-        const next = [...routeDraft, [Number(e.lngLat.lng.toFixed(6)), Number(e.lngLat.lat.toFixed(6))]];
+        const next = [...routeDraftRef.current, [Number(e.lngLat.lng.toFixed(6)), Number(e.lngLat.lat.toFixed(6))]];
+        routeDraftRef.current = next;
         setRouteDraft(next);
         localStorage.setItem("treeline_route_draft", JSON.stringify(next));
         setPlaceStatus(`Routenpunkt ${next.length} gesetzt.`);
@@ -580,11 +586,39 @@ function MapView({ onSelectTree }) {
 
   function saveRouteDraft() {
     if (!selectedOrder || routeDraft.length < 2) return;
+    const now = new Date().toISOString();
+    const route = {
+      id: `ROUTE-${selectedOrder.id}`,
+      orderId: selectedOrder.id,
+      title: `Arbeitsroute ${selectedOrder.title}`,
+      status: "geplant",
+      type: "work_route",
+      coordinates: routeDraft,
+      pointCount: routeDraft.length,
+      updatedAt: now,
+    };
     selectedOrder.planningRoute = routeDraft;
-    selectedOrder.updatedAt = new Date().toISOString();
+    selectedOrder.routeId = route.id;
+    selectedOrder.updatedAt = now;
     window.TREELINE_DB?.save();
+    window.TREELINE_DB?.saveOrder?.(selectedOrder).catch(err => {
+      console.warn("Appwrite order save failed; route is stored locally.", err);
+      setPlaceStatus("Route lokal gespeichert, Appwrite nicht erreichbar.");
+    });
+    window.TREELINE_APPWRITE?.saveRoute?.(route).catch(err => {
+      console.warn("Appwrite route save failed; route is stored locally.", err);
+    });
     setRouteSavedAt(new Date().toLocaleTimeString("de-DE", { hour:"2-digit", minute:"2-digit" }));
     setPlaceStatus(`Route mit ${routeDraft.length} Punkten gespeichert.`);
+  }
+
+  function applySpeciesName(value) {
+    const latin = window.TREELINE_SPECIES?.getLatinName(value) || "";
+    setNewTreeData(prev => ({
+      ...prev,
+      name:value,
+      species: latin && (!prev.species || prev.species === window.TREELINE_SPECIES?.getLatinName(prev.name)) ? latin : prev.species,
+    }));
   }
 
   return (
@@ -659,7 +693,10 @@ function MapView({ onSelectTree }) {
             <div style={mvStyles.addCoords}>{clickCoords?.lat.toFixed(5)}, {clickCoords?.lng.toFixed(5)}</div>
             <div style={mvStyles.fLabel}>Bezeichnung</div>
             <input style={mvStyles.fInput} placeholder="z.B. Stieleiche" value={newTreeData.name}
-              onChange={e=>setNewTreeData({...newTreeData,name:e.target.value})} />
+              list="treeline-map-species" onChange={e=>applySpeciesName(e.target.value)} />
+            <datalist id="treeline-map-species">
+              {(window.TREELINE_TREE_SPECIES || []).map(item => <option key={item.name} value={item.name} />)}
+            </datalist>
             <div style={mvStyles.fLabel}>Art (lateinisch)</div>
             <input style={mvStyles.fInput} placeholder="z.B. Quercus robur" value={newTreeData.species}
               onChange={e=>setNewTreeData({...newTreeData,species:e.target.value})} />

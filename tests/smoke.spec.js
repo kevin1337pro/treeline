@@ -82,3 +82,12 @@ test("planting creation adds and selects a planting", async ({ page }) => {
   await expect(page.getByText("Winterlinde").first()).toBeVisible();
   await expect(page.getByText("Tilia cordata").first()).toBeVisible();
 });
+
+test("tree form auto-fills latin species", async ({ page }) => {
+  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: "Bäume" }).first().click();
+  await page.getByRole("button", { name: "+ Neu" }).click();
+  await page.locator("input[placeholder='z.B. Stieleiche']").fill("Stileiche");
+
+  await expect(page.locator("input[placeholder='Quercus robur']")).toHaveValue("Quercus robur");
+});

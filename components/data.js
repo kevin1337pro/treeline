@@ -1,4 +1,39 @@
 // Treeline – Mock Data
+const TREELINE_TREE_SPECIES = [
+  { name:"Stieleiche", aliases:["stileiche","eiche"], latin:"Quercus robur" },
+  { name:"Traubeneiche", aliases:["traubeneiche"], latin:"Quercus petraea" },
+  { name:"Rotbuche", aliases:["buche"], latin:"Fagus sylvatica" },
+  { name:"Gemeine Kiefer", aliases:["kiefer"], latin:"Pinus sylvestris" },
+  { name:"Silberpappel", aliases:["pappel"], latin:"Populus alba" },
+  { name:"Spitzahorn", aliases:["ahorn"], latin:"Acer platanoides" },
+  { name:"Feldahorn", aliases:["feldahorn"], latin:"Acer campestre" },
+  { name:"Hainbuche", aliases:["hainbuche"], latin:"Carpinus betulus" },
+  { name:"Traubenkirsche", aliases:["traubenkirsche"], latin:"Prunus padus" },
+  { name:"Linde", aliases:["winterlinde"], latin:"Tilia cordata" },
+  { name:"Platane", aliases:["platane"], latin:"Platanus x hispanica" },
+];
+
+function normalizeTreeSpeciesName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("ä", "ae")
+    .replaceAll("ö", "oe")
+    .replaceAll("ü", "ue")
+    .replaceAll("ß", "ss")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getLatinSpeciesForTreeName(value) {
+  const normalized = normalizeTreeSpeciesName(value);
+  if (!normalized) return "";
+  const match = TREELINE_TREE_SPECIES.find(entry => {
+    const names = [entry.name, ...(entry.aliases || [])].map(normalizeTreeSpeciesName);
+    return names.some(name => normalized === name || normalized.includes(name));
+  });
+  return match?.latin || "";
+}
+
 const TREELINE_SEED_DATA = {
   currentUser: {
     id: "user-001", name: "Markus Enbergs", email: "m.enbergs@enbergs.de",
@@ -216,6 +251,8 @@ function initializeTreelineDatabase() {
 }
 
 window.MOCK_DATA = initializeTreelineDatabase();
+window.TREELINE_TREE_SPECIES = TREELINE_TREE_SPECIES;
+window.TREELINE_SPECIES = { getLatinName: getLatinSpeciesForTreeName };
 window.TREELINE_DB = {
   save() {
     localStorage.setItem("treeline_database", JSON.stringify({ version: TREELINE_DB_VERSION, data: window.MOCK_DATA }));
@@ -223,6 +260,10 @@ window.TREELINE_DB = {
   async saveTree(tree) {
     if (!window.TREELINE_APPWRITE) return null;
     return window.TREELINE_APPWRITE.saveTree(tree);
+  },
+  async saveOrder(order) {
+    if (!window.TREELINE_APPWRITE) return null;
+    return window.TREELINE_APPWRITE.saveOrder(order);
   },
   reset() {
     localStorage.removeItem("treeline_database");

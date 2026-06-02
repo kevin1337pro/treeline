@@ -14,6 +14,7 @@ const appCollections = {
   users: process.env.APPWRITE_USERS_COLLECTION_ID || "users",
   vehicles: process.env.APPWRITE_VEHICLES_COLLECTION_ID || "vehicles",
   equipment: process.env.APPWRITE_EQUIPMENT_COLLECTION_ID || "equipment",
+  routes: process.env.APPWRITE_ROUTES_COLLECTION_ID || "routes",
   plantings: process.env.APPWRITE_PLANTINGS_COLLECTION_ID || "plantings",
   media: process.env.APPWRITE_MEDIA_COLLECTION_ID || "media",
 };
@@ -351,6 +352,7 @@ const genericCollections = [
   ["users", "Users", seed.users || []],
   ["vehicles", "Vehicles", seed.vehicles || []],
   ["equipment", "Equipment", seed.equipment || []],
+  ["routes", "Routes", seed.routes || []],
   ["plantings", "Plantings", seed.plantings || []],
   ["media", "Media", seed.media || []],
 ];

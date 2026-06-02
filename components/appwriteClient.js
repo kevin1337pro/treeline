@@ -34,6 +34,22 @@ function toAppwriteTreeDocument(tree) {
   };
 }
 
+function documentIdFromId(id) {
+  return String(id || crypto.randomUUID()).replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 36);
+}
+
+function toGenericDocument(item, type) {
+  const itemId = item.id || `${type}-${Date.now()}`;
+  return {
+    itemId,
+    title: item.title || item.name || item.label || item.email || itemId,
+    status: item.status || "aktiv",
+    type: item.type || item.role || type,
+    scheduledDate: item.scheduledDate || item.date || item.plannedDate || "",
+    rawJson: JSON.stringify(item),
+  };
+}
+
 function createTreelineAppwriteClient() {
   const config = getTreelineAppwriteConfig();
   if (!config?.endpoint || !config?.projectId || !config?.databaseId || !config?.treesCollectionId) {
@@ -63,8 +79,28 @@ function createTreelineAppwriteClient() {
   }
 
   return {
+    async saveGeneric(collectionKey, item) {
+      const collectionId = config.collectionIds?.[collectionKey];
+      if (!collectionId) return null;
+      const documentId = documentIdFromId(item.id);
+      const path = `/databases/${config.databaseId}/collections/${collectionId}/documents`;
+      const data = toGenericDocument(item, collectionKey);
+      const payload = { documentId, data, permissions: ['read("any")', 'update("any")', 'delete("any")'] };
+      try {
+        return await request(path, { method: "POST", body: JSON.stringify(payload) });
+      } catch (err) {
+        if (err.status !== 409) throw err;
+        return request(`${path}/${documentId}`, { method: "PATCH", body: JSON.stringify({ data: payload.data }) });
+      }
+    },
+    async saveOrder(order) {
+      return this.saveGeneric("orders", order);
+    },
+    async saveRoute(route) {
+      return this.saveGeneric("routes", route);
+    },
     async saveTree(tree) {
-      const documentId = tree.id.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 36);
+      const documentId = documentIdFromId(tree.id);
       const path = `/databases/${config.databaseId}/collections/${config.treesCollectionId}/documents`;
       const payload = { documentId, data: toAppwriteTreeDocument(tree), permissions: ['read("any")', 'update("any")', 'delete("any")'] };
       try {
