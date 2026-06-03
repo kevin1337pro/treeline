@@ -83,7 +83,7 @@ function Dashboard({ currentUser, onNav, onSelectTree }) {
   })).filter(d => d.value > 0);
 
   return (
-    <div style={dbStyles.page}>
+    <div className="dashboard-page" style={dbStyles.page}>
       <div style={dbStyles.header}>
         <div>
           <h1 style={dbStyles.title}>Übersicht</h1>
@@ -93,7 +93,7 @@ function Dashboard({ currentUser, onNav, onSelectTree }) {
       </div>
 
       {/* KPI row */}
-      <div style={dbStyles.statGrid}>
+      <div className="stat-grid" style={dbStyles.statGrid}>
         {[
           { label:"Bäume gesamt", value:trees.length, sub:"erfasst", color:"#1D7A56", spark:[4,5,5,6,6,7] },
           { label:"Zertifiziert",  value:certified,    sub:`${trees.length ? Math.round(certified/trees.length*100) : 0}% zertifiziert`, color:"#1565A0", spark:[2,2,3,4,4,5] },
@@ -113,7 +113,7 @@ function Dashboard({ currentUser, onNav, onSelectTree }) {
         ))}
       </div>
 
-      <div style={dbStyles.row3}>
+      <div className="row3" style={dbStyles.row3}>
         {/* Status Donut */}
         <div style={dbStyles.card}>
           <div style={dbStyles.cardTitle}>Baumstatus</div>
@@ -159,7 +159,7 @@ function Dashboard({ currentUser, onNav, onSelectTree }) {
         </div>
       </div>
 
-      <div style={dbStyles.twoCol}>
+      <div className="two-col" style={dbStyles.twoCol}>
         {/* Handlungsbedarf */}
         <div style={dbStyles.card}>
           <div style={dbStyles.cardTitle}>⚠️ Handlungsbedarf</div>
@@ -204,31 +204,33 @@ function Dashboard({ currentUser, onNav, onSelectTree }) {
       {/* Maßnahmentabelle */}
       <div style={dbStyles.card}>
         <div style={{...dbStyles.cardTitle,marginBottom:14}}>Anstehende Maßnahmen</div>
-        <table style={dbStyles.table}>
-          <thead>
-            <tr>{["Maßnahme","Baum","Typ","Fällig","Status","Priorität"].map(h=>(
-              <th key={h} style={dbStyles.th}>{h}</th>
-            ))}</tr>
-          </thead>
-          <tbody>
-            {recentMeasures.map(m => {
-              const tree = trees.find(t=>t.id===m.treeId);
-              const mt = measureTypes[m.type]||{};
-              const stStyle={geplant:{bg:"#EDF7F1",c:"#1D7A56"},in_arbeit:{bg:"#FFF8E1",c:"#E6A817"},abgeschlossen:{bg:"#F0F0F0",c:"#777"}}[m.status]||{};
-              const prStyle={kritisch:{bg:"#FFEBEE",c:"#B71C1C"},hoch:{bg:"#FFF3E0",c:"#E65100"},mittel:{bg:"#E8F5E9",c:"#2E7D52"},niedrig:{bg:"#F5F5F5",c:"#777"}}[m.priority]||{};
-              return (
-                <tr key={m.id} style={dbStyles.tr}>
-                  <td style={dbStyles.td}><span style={dbStyles.tdMain}>{m.title}</span></td>
-                  <td style={dbStyles.td}><span style={dbStyles.treeChip}>{tree?tree.name:m.treeId}</span></td>
-                  <td style={dbStyles.td}><span style={{...dbStyles.badge,background:(mt.color||"#888")+"20",color:mt.color||"#888"}}>{mt.label||m.type}</span></td>
-                  <td style={dbStyles.td}>{m.date}</td>
-                  <td style={dbStyles.td}><span style={{...dbStyles.badge,background:stStyle.bg,color:stStyle.c}}>{{geplant:"Geplant",in_arbeit:"In Arbeit",abgeschlossen:"Abgeschlossen"}[m.status]}</span></td>
-                  <td style={dbStyles.td}><span style={{...dbStyles.badge,background:prStyle.bg,color:prStyle.c}}>{m.priority}</span></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="table-scroll" style={dbStyles.tableScroll}>
+          <table style={dbStyles.table}>
+            <thead>
+              <tr>{["Maßnahme","Baum","Typ","Fällig","Status","Priorität"].map(h=>(
+                <th key={h} style={dbStyles.th}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {recentMeasures.map(m => {
+                const tree = trees.find(t=>t.id===m.treeId);
+                const mt = measureTypes[m.type]||{};
+                const stStyle={geplant:{bg:"#EDF7F1",c:"#1D7A56"},in_arbeit:{bg:"#FFF8E1",c:"#E6A817"},abgeschlossen:{bg:"#F0F0F0",c:"#777"}}[m.status]||{};
+                const prStyle={kritisch:{bg:"#FFEBEE",c:"#B71C1C"},hoch:{bg:"#FFF3E0",c:"#E65100"},mittel:{bg:"#E8F5E9",c:"#2E7D52"},niedrig:{bg:"#F5F5F5",c:"#777"}}[m.priority]||{};
+                return (
+                  <tr key={m.id} style={dbStyles.tr}>
+                    <td style={dbStyles.td}><span style={dbStyles.tdMain}>{m.title}</span></td>
+                    <td style={dbStyles.td}><span style={dbStyles.treeChip}>{tree?tree.name:m.treeId}</span></td>
+                    <td style={dbStyles.td}><span style={{...dbStyles.badge,background:(mt.color||"#888")+"20",color:mt.color||"#888"}}>{mt.label||m.type}</span></td>
+                    <td style={dbStyles.td}>{m.date}</td>
+                    <td style={dbStyles.td}><span style={{...dbStyles.badge,background:stStyle.bg,color:stStyle.c}}>{{geplant:"Geplant",in_arbeit:"In Arbeit",abgeschlossen:"Abgeschlossen"}[m.status]}</span></td>
+                    <td style={dbStyles.td}><span style={{...dbStyles.badge,background:prStyle.bg,color:prStyle.c}}>{m.priority}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -265,6 +267,7 @@ const dbStyles = {
   alertNote: { fontSize:12, color:"#888", marginTop:2 },
   empty:     { fontSize:13, color:"#aaa", padding:"16px 0" },
   badge:     { display:"inline-block", padding:"3px 9px", borderRadius:100, fontSize:11, fontWeight:600 },
+  tableScroll:{ overflowX:"auto", width:"100%" },
   table:     { width:"100%", borderCollapse:"collapse" },
   th:        { textAlign:"left", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.5px",
                textTransform:"uppercase", padding:"0 12px 10px 0", borderBottom:"1px solid #e5e5e0" },

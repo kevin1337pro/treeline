@@ -97,6 +97,9 @@ test("mobile order and map controls stay reachable", async ({ page }) => {
   await page.getByRole("button", { name: /Navigation öffnen/ }).click();
   await page.getByRole("button", { name: "Karte" }).first().click();
   await expect(page.getByLabel("Auftrag auf Karte auswählen")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Werkzeug öffnen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Route zeichnen" })).toBeHidden();
+  await page.getByRole("button", { name: "Werkzeug öffnen" }).click();
   await expect(page.getByRole("button", { name: "Route zeichnen" })).toBeVisible();
 });
 

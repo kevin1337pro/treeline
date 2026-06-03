@@ -14,6 +14,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
   const [placeStatus, setPlaceStatus] = React.useState("");
   const [mapStyle, setMapStyle] = React.useState("mapbox://styles/mapbox/satellite-streets-v12");
   const [toolMode, setToolMode] = React.useState("select");
+  const [toolsOpen, setToolsOpen] = React.useState(() => window.innerWidth > 768);
   const [threeDEnabled, setThreeDEnabled] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [clickCoords, setClickCoords] = React.useState(null);
@@ -49,10 +50,19 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
   });
   const [routeSavedAt, setRouteSavedAt] = React.useState("");
   const planningRoute = routeDraft.length ? routeDraft : getOrderPlanningCoordinates(selectedOrder);
+  const activeToolLabel = { select:"Auswählen", tree:"Baum setzen", route:"Route zeichnen" }[toolMode];
 
   React.useEffect(() => {
     routeDraftRef.current = routeDraft;
   }, [routeDraft]);
+
+  React.useEffect(() => {
+    function syncToolPanel() {
+      if (window.innerWidth > 768) setToolsOpen(true);
+    }
+    window.addEventListener("resize", syncToolPanel);
+    return () => window.removeEventListener("resize", syncToolPanel);
+  }, []);
 
   React.useEffect(() => {
     selectedOrderRef.current = selectedOrder;
@@ -717,7 +727,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
           onChange={e => onSelectOrder?.(e.target.value)}>
           {orders.map(order => <option key={order.id} value={order.id}>{order.id} · {order.title}</option>)}
         </select>
-        <form style={mvStyles.placeSearch} onSubmit={handlePlaceSearch}>
+        <form className="map-place-search" style={mvStyles.placeSearch} onSubmit={handlePlaceSearch}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#777" strokeWidth="2.5">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
@@ -726,9 +736,9 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
             placeholder="Baum, Auftrag, Stadt oder Adresse suchen"
             aria-label="Baum, Auftrag, Stadt oder Adresse suchen" />
           <button type="submit" style={mvStyles.placeBtn}>Suchen</button>
-          {placeStatus && <span style={mvStyles.placeStatus}>{placeStatus}</span>}
+          {placeStatus && <span className="map-place-status" style={mvStyles.placeStatus}>{placeStatus}</span>}
         </form>
-        <div style={mvStyles.filters}>
+        <div className="map-filters" style={mvStyles.filters}>
           {statusOpts.map(([val,label]) => (
             <button key={val} onClick={() => setFilter(val)}
               style={{...mvStyles.filterBtn,...(filter===val?mvStyles.filterBtnActive:{})}}>
@@ -737,44 +747,57 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
             </button>
           ))}
         </div>
-        <div style={mvStyles.styleSwitch}>
-          {styleOpts.map(([style,label]) => (
-            <button key={style} onClick={() => setMapStyle(style)}
-              style={{...mvStyles.styleBtn,...(mapStyle===style?mvStyles.styleBtnActive:{})}}>
-              {label}
-            </button>
-          ))}
+        <div className="map-view-actions" style={mvStyles.viewActions}>
+          <div className="map-style-switch" style={mvStyles.styleSwitch}>
+            {styleOpts.map(([style,label]) => (
+              <button key={style} onClick={() => setMapStyle(style)}
+                style={{...mvStyles.styleBtn,...(mapStyle===style?mvStyles.styleBtnActive:{})}}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <button className="map-mode-btn" style={mvStyles.orderBtn} onClick={()=>setThreeDEnabled(v => !v)}>{threeDEnabled ? "2D" : "3D"}</button>
+          <button className="map-focus-btn" style={mvStyles.orderBtn} onClick={()=>focusOrder(selectedOrder)} aria-label="Auftrag fokussieren">
+            <span className="desktop-label">Auftrag fokussieren</span>
+            <span className="mobile-label">Fokus</span>
+          </button>
         </div>
-        <button style={mvStyles.orderBtn} onClick={()=>setThreeDEnabled(v => !v)}>{threeDEnabled ? "2D" : "3D"}</button>
-        <button style={mvStyles.orderBtn} onClick={()=>focusOrder(selectedOrder)}>Auftrag fokussieren</button>
       </div>
 
       <div className="map-body" style={{display:"flex",flex:1,overflow:"hidden"}}>
         <div className="map-canvas" ref={mapRef} style={{flex:1,background:"#eef1ef",position:"relative"}}>
           {!mapboxToken && <div style={mvStyles.mapFallback}>Mapbox Token fehlt.</div>}
-          <div className="map-tool-panel" style={mvStyles.toolPanel}>
-            <div style={mvStyles.toolTitle}>Werkzeug</div>
-            <div style={mvStyles.toolModes}>
+          <div className={`map-tool-panel ${toolsOpen ? "map-tool-panel-open" : "map-tool-panel-collapsed"}`} style={mvStyles.toolPanel}>
+            <button type="button" className="map-tool-toggle" style={mvStyles.toolToggle}
+              onClick={() => setToolsOpen(v => !v)}
+              aria-label={toolsOpen ? "Werkzeug schließen" : "Werkzeug öffnen"}>
+              <span style={mvStyles.toolTitle}>Werkzeug</span>
+              <span style={mvStyles.toolState}>{activeToolLabel}</span>
+              <span style={mvStyles.toolChevron}>{toolsOpen ? "-" : "+"}</span>
+            </button>
+            <div className="map-tool-body">
+              <div style={mvStyles.toolModes}>
               {[["select","Auswählen"],["tree","Baum setzen"],["route","Route zeichnen"]].map(([mode,label]) => (
                 <button key={mode} onClick={()=>{ setToolMode(mode); if (mode !== "tree") setShowAddForm(false); }}
                   style={{...mvStyles.toolBtn,...(toolMode===mode?mvStyles.toolBtnActive:{})}}>
                   {label}
                 </button>
               ))}
-            </div>
-            <div style={mvStyles.toolHint}>
-              {toolMode === "select" && "Bäume antippen, Profile öffnen und Auftrag fokussieren."}
-              {toolMode === "tree" && "Auf die Karte klicken, um einen Baum mit Auftragsdaten anzulegen."}
-              {toolMode === "route" && "Nacheinander Punkte klicken, um eine Arbeitsroute zu markieren."}
-            </div>
-            <div style={mvStyles.routeTools}>
-              <button style={mvStyles.routeBtn} onClick={undoRoutePoint} disabled={!routeDraft.length}>Undo</button>
-              <button style={mvStyles.routeBtn} onClick={clearRouteDraft} disabled={!routeDraft.length}>Löschen</button>
-              <button style={mvStyles.routePrimaryBtn} onClick={saveRouteDraft} disabled={routeDraft.length < 2}>Route speichern</button>
-            </div>
-            <div style={mvStyles.routeMeta}>
-              {routeDraft.length ? `${routeDraft.length} gezeichnete Punkte` : `${planningRoute.length} Auftragsroutenpunkte`}
-              {routeSavedAt ? ` · gespeichert ${routeSavedAt}` : ""}
+              </div>
+              <div style={mvStyles.toolHint}>
+                {toolMode === "select" && "Bäume antippen, Profile öffnen und Auftrag fokussieren."}
+                {toolMode === "tree" && "Auf die Karte klicken, um einen Baum mit Auftragsdaten anzulegen."}
+                {toolMode === "route" && "Nacheinander Punkte klicken, um eine Arbeitsroute zu markieren."}
+              </div>
+              <div style={mvStyles.routeTools}>
+                <button style={mvStyles.routeBtn} onClick={undoRoutePoint} disabled={!routeDraft.length}>Undo</button>
+                <button style={mvStyles.routeBtn} onClick={clearRouteDraft} disabled={!routeDraft.length}>Löschen</button>
+                <button style={mvStyles.routePrimaryBtn} onClick={saveRouteDraft} disabled={routeDraft.length < 2}>Route speichern</button>
+              </div>
+              <div style={mvStyles.routeMeta}>
+                {routeDraft.length ? `${routeDraft.length} gezeichnete Punkte` : `${planningRoute.length} Auftragsroutenpunkte`}
+                {routeSavedAt ? ` · gespeichert ${routeSavedAt}` : ""}
+              </div>
             </div>
           </div>
         </div>
@@ -920,6 +943,7 @@ const mvStyles = {
                    display:"flex",alignItems:"center",gap:5},
   filterBtnActive:{background:"#EDF7F1",borderColor:"#1D7A56",color:"#1D7A56",fontWeight:700},
   filterDot:      {width:8,height:8,borderRadius:"50%",flexShrink:0},
+  viewActions:    {display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"},
   styleSwitch:    {display:"flex",gap:4,background:"#f5f5f3",borderRadius:8,padding:3},
   styleBtn:       {padding:"5px 8px",border:"none",borderRadius:6,background:"transparent",
                    fontSize:11,fontWeight:700,cursor:"pointer",color:"#666"},
@@ -934,7 +958,10 @@ const mvStyles = {
   toolPanel:      {position:"absolute",left:14,top:14,width:280,background:"rgba(255,255,255,0.96)",
                    border:"1px solid #e5e5e0",borderRadius:8,padding:"12px",boxShadow:"0 10px 28px rgba(0,0,0,0.14)",
                    zIndex:5,backdropFilter:"blur(6px)"},
-  toolTitle:      {fontSize:12,fontWeight:800,color:"#1a1a18",marginBottom:8},
+  toolToggle:     {width:"100%",border:"none",background:"transparent",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:0,cursor:"pointer",textAlign:"left"},
+  toolTitle:      {fontSize:12,fontWeight:800,color:"#1a1a18"},
+  toolState:      {fontSize:11,fontWeight:800,color:"#1D7A56",background:"#EDF7F1",borderRadius:100,padding:"3px 8px",marginLeft:"auto"},
+  toolChevron:    {width:22,height:22,borderRadius:6,background:"#f5f5f3",color:"#555",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,flexShrink:0},
   toolModes:      {display:"grid",gridTemplateColumns:"1fr",gap:6},
   toolBtn:        {padding:"8px 10px",border:"1px solid #e0e0dc",borderRadius:7,background:"#fff",
                    color:"#444",fontSize:12,fontWeight:700,cursor:"pointer",textAlign:"left"},

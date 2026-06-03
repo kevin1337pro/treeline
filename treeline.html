@@ -16,9 +16,15 @@
     ::-webkit-scrollbar-thumb:hover { background: #bbb; }
     button, input, select, textarea { font-family: inherit; }
     .mapboxgl-map { font-family: inherit; }
+    .mobile-label { display: none; }
 
     /* Mobile responsive */
     @media (max-width: 768px) {
+      html, body, #root {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+      }
       .sidebar-desktop {
         top: 52px !important;
         height: calc(100vh - 52px) !important;
@@ -27,12 +33,39 @@
       }
       .sidebar-desktop.sidebar-open { transform: translateX(0); }
       .sidebar-desktop.sidebar-collapsed { transform: translateX(-100%); }
-      .main-content { margin-left: 0 !important; }
-      .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+      }
+      .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .stat-grid > * {
+        min-width: 0 !important;
+      }
       .row3 { grid-template-columns: 1fr !important; }
       .two-col { grid-template-columns: 1fr !important; }
       .meta-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .kanban { grid-template-columns: 1fr !important; }
+      .dashboard-page {
+        padding: 20px 14px 28px !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+      }
+      .dashboard-page svg {
+        max-width: 100% !important;
+      }
+      .table-scroll {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+      .table-scroll table {
+        min-width: 720px !important;
+      }
       .app-top-bar {
         padding: 0 10px !important;
       }
@@ -42,15 +75,23 @@
       .global-search {
         display: none !important;
       }
+      .desktop-label {
+        display: none !important;
+      }
+      .mobile-label {
+        display: inline !important;
+      }
       .orders-shell {
         height: auto !important;
         min-height: 100% !important;
         overflow: visible !important;
         flex-direction: column !important;
+        max-width: 100vw !important;
       }
       .orders-list {
         width: 100% !important;
         min-width: 0 !important;
+        max-width: 100% !important;
         height: auto !important;
         max-height: 42vh !important;
         border-right: none !important;
@@ -59,18 +100,28 @@
       .orders-detail {
         padding: 16px !important;
         overflow: visible !important;
+        min-width: 0 !important;
+        max-width: 100vw !important;
+      }
+      .orders-detail > * {
+        min-width: 0 !important;
       }
       .orders-detail h1 {
         font-size: 22px !important;
       }
       .map-shell {
         height: calc(100vh - 52px) !important;
+        max-width: 100vw !important;
+        overflow: hidden !important;
       }
       .map-toolbar {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
         gap: 8px !important;
         padding: 8px !important;
-        max-height: 35vh !important;
-        overflow-y: auto !important;
+        max-height: none !important;
+        overflow: hidden !important;
+        align-items: stretch !important;
       }
       .map-toolbar select,
       .map-toolbar form {
@@ -78,18 +129,62 @@
         width: 100% !important;
         flex-basis: 100% !important;
       }
+      .map-toolbar > span {
+        display: none !important;
+      }
+      .map-place-search {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) auto !important;
+        align-items: center !important;
+      }
+      .map-place-search input {
+        min-width: 0 !important;
+      }
+      .map-place-status {
+        display: none !important;
+      }
+      .map-filters,
+      .map-view-actions {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2px !important;
+      }
+      .map-filters button,
+      .map-style-switch,
+      .map-mode-btn,
+      .map-focus-btn {
+        flex: 0 0 auto !important;
+      }
       .map-body {
         flex-direction: column !important;
+        min-height: 0 !important;
       }
       .map-canvas {
-        min-height: 54vh !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        flex: 1 1 auto !important;
       }
       .map-tool-panel {
         left: 8px !important;
         right: 8px !important;
-        top: 8px !important;
+        top: auto !important;
+        bottom: 10px !important;
         width: auto !important;
         max-width: none !important;
+        padding: 10px !important;
+        z-index: 10 !important;
+      }
+      .map-tool-panel-collapsed .map-tool-body {
+        display: none !important;
+      }
+      .map-tool-panel-open {
+        max-height: min(52vh, 360px) !important;
+        overflow-y: auto !important;
       }
       .map-side-panel {
         width: 100% !important;
