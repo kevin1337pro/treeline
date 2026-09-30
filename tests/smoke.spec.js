@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 
 test.beforeEach(async ({ page }) => {
+  await page.route("https://fra.cloud.appwrite.io/**", route => route.abort());
   await page.goto("/treeline.html");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
@@ -50,8 +51,8 @@ test("sample order shows crew, vehicles and tree route", async ({ page }) => {
   await page.getByRole("button", { name: "Aufträge" }).first().click();
 
   await expect(page.getByText("Kronenpflege Gahlener Straße Dorsten").first()).toBeVisible();
-  await expect(page.getByText("Kevin Stumpe")).toBeVisible();
-  await expect(page.getByText("Thorsten Thesing")).toBeVisible();
+  await expect(page.getByText("Kevin Stumpe", { exact: true })).toBeVisible();
+  await expect(page.getByText("Thorsten Thesing", { exact: true })).toBeVisible();
   await expect(page.getByText("BOT - RR - 220").first()).toBeVisible();
   await expect(page.getByText("BOT - BE - 118").first()).toBeVisible();
   await expect(page.getByText("Linke Straßenseite", { exact: true })).toBeVisible();

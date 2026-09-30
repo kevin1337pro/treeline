@@ -1,5 +1,7 @@
 function Sidebar({ active, onNav, currentUser, onLogout, collapsed, onToggle }) {
   const navItems = [
+    ...(currentUser?.role === "admin" ? [{ id:"dispatch", label:"Einsatzplanung", icon:<DispatchIcon name="CalendarDays"/> }] : []),
+    ...(currentUser?.role !== "client" ? [{ id:"inbox", label:"Postfach", icon:<DispatchIcon name="Inbox"/> }] : []),
     { id:"dashboard", label:"Übersicht",     icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
     { id:"orders",    label:"Aufträge",       icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg> },
     { id:"map",       label:"Karte",          icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg> },
@@ -38,6 +40,7 @@ function Sidebar({ active, onNav, currentUser, onLogout, collapsed, onToggle }) 
         {!collapsed && <div style={{fontSize:10,fontWeight:600,color:"#aaa",letterSpacing:"0.8px",textTransform:"uppercase",padding:"6px 8px 4px"}}>Menü</div>}
         {navItems.map(item => (
           <button key={item.id} onClick={() => onNav(item.id)}
+            aria-label={item.label} aria-current={active === item.id ? "page" : undefined}
             title={collapsed ? item.label : ""}
             style={{
               display:"flex", alignItems:"center", gap:10,

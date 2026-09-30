@@ -1,6 +1,18 @@
 # Treeline
 
-Treeline ist eine statische Demo-Anwendung fuer Baumverwaltung, Einsatzplanung und Team-Uebersicht im Umfeld von Baumkontrolle und Baumpflege. Die Anwendung laeuft aktuell direkt ueber `treeline.html` und bindet React, ReactDOM, Babel Standalone und Leaflet per CDN ein.
+Treeline ist eine statische Demo-Anwendung fuer Baumverwaltung, Einsatzplanung und Team-Uebersicht im Umfeld von Baumkontrolle und Baumpflege. Die Anwendung laeuft aktuell direkt ueber `treeline.html` und bindet React, ReactDOM, Babel Standalone und Mapbox GL JS per CDN ein.
+
+## Digitale Tagesliste
+
+Neu: `Einsatzplanung` fuer Buero-Entwuerfe und versionierte Freigaben, `Postfach`
+fuer Mitarbeiter mit Lesebestaetigung und `Aushang` fuer Bildschirm/iPad und Druck.
+Vorhandene Beispielprofile lassen sich ueber die Auswahl im Kopfbereich wechseln.
+Echte Konten werden spaeter zugeordnet. Die neue Planung speichert ausschliesslich
+lokal im Browser, ohne E-Mail-Versand oder Synchronisierung auf andere Geraete.
+
+[Bedienung, Datenmodell und sicherer Appwrite-Ausbau](docs/EINSATZPLANUNG.md).
+[Priorisierte Erweiterungen und Vergleich mit QField, RIWA und Field Maps](ROADMAP.md).
+[Konkrete offene Aufgaben bis zum Produktivbetrieb](docs/OFFENE_AUFGABEN.md).
 
 ## Projektstatus
 
@@ -20,7 +32,7 @@ Das Projekt wurde als lokale Basis initialisiert mit:
 ## Installation
 
 ```bash
-npm install
+npm ci
 ```
 
 ## Entwicklung starten
@@ -34,10 +46,20 @@ Danach ist die Anwendung lokal unter `http://localhost:4173` erreichbar.
 ## Tests
 
 ```bash
-npm run test:smoke
+npx playwright install chromium
+npm run test:unit
+npm test
 ```
 
-Die Smoke-Tests starten bei Bedarf den lokalen Server und pruefen Login, Navigation, Massnahmen-Erstellung und Team-Einladung.
+Die Tests starten bei Bedarf den lokalen Server und pruefen Demo-Login, Navigation,
+Kernaktionen und den Ablauf von Einsatzentwurf bis Postfach/Aushang. Alle
+Appwrite-Anfragen werden in den Tests abgefangen. `npm run test:smoke` fuehrt nur
+die bisherigen Kernfunktionstests aus. `npm run icons` erzeugt die eingebundenen
+Lucide-Icons aus der festgelegten Paketversion neu.
+
+Ist Port 4173 bereits durch ein anderes Projekt belegt, einen freien Port waehlen:
+`TREELINE_TEST_PORT=4174 npm test`. Ein bereits laufender Treeline-Server auf diesem
+Port wird lokal wiederverwendet; CI startet einen eigenen Server.
 
 ## Projektstruktur
 
@@ -100,6 +122,11 @@ Die Kartenansicht nutzt Mapbox GL JS mit umschaltbaren Kartenstilen:
 Der Public Token wird beim GitHub-Pages-Deploy aus dem Actions Secret `MAPBOX_PUBLIC_TOKEN` in `components/mapbox.config.js` geschrieben. Lokal kann fuer Entwicklung alternativ `localStorage.treeline_mapbox_token` gesetzt werden. In Mapbox sollte dieser Token auf die erlaubten Domains beschraenkt werden, zum Beispiel `localhost` und `kevin1337pro.github.io`.
 
 ## Appwrite Setup
+
+**Achtung:** Das bestehende Setup ist ein Demo-Seeder mit oeffentlichen
+Berechtigungen und kann vorhandene Seed-Dokumente ueberschreiben. Nicht fuer echte
+Mitarbeiterdaten verwenden oder ungeprueft gegen eine produktive Datenbank starten.
+Die neue Einsatzplanung verwendet dieses Skript nicht.
 
 Das Skript legt die Datenbank `treeline` und Collections fuer `trees`, `orders`, `measures`, `users`, `vehicles`, `equipment`, `routes`, `plantings` und `media` an. Es braucht ein vorhandenes Appwrite-Projekt und einen API-Key:
 

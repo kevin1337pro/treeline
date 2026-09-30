@@ -1,8 +1,6 @@
 function Login({ onLogin }) {
   const [selectedRole, setSelectedRole] = React.useState("admin");
   const [email, setEmail] = React.useState("m.enbergs@enbergs.de");
-  const [pw, setPw] = React.useState("••••••••");
-  const [loading, setLoading] = React.useState(false);
 
   const roleProfiles = [
     { id:"user-001", role:"admin",     name:"Markus Enbergs",   email:"m.enbergs@enbergs.de",   initials:"ME", team:"Geschäftsführung",
@@ -16,19 +14,16 @@ function Login({ onLogin }) {
   ];
 
   function handleLogin() {
-    setLoading(true);
-    const profile = roleProfiles.find(r => r.role === selectedRole);
-    setTimeout(() => {
-      onLogin({ ...profile });
-    }, 250);
+    const profile = MOCK_DATA.users.find(r => r.email === email) || roleProfiles.find(r => r.role === selectedRole);
+    onLogin({ ...profile });
   }
 
-  const selected = roleProfiles.find(r => r.role === selectedRole);
+  const selected = MOCK_DATA.users.find(r => r.email === email) || roleProfiles.find(r => r.role === selectedRole);
 
   return (
     <div style={loginStyles.wrap}>
       {/* Left: branding */}
-      <div style={loginStyles.left}>
+      <div className="login-brand" style={loginStyles.left}>
         <div style={loginStyles.leftInner}>
           <img src="uploads/logo-1776797212104.png" alt="Enbergs" style={loginStyles.logo} />
           <div style={loginStyles.brand}>treeline</div>
@@ -48,7 +43,7 @@ function Login({ onLogin }) {
       </div>
 
       {/* Right: login form */}
-      <div style={loginStyles.right}>
+      <div className="login-form-panel" style={loginStyles.right}>
         <div style={loginStyles.form}>
           <div style={loginStyles.formTitle}>Anmelden</div>
           <div style={loginStyles.formSub}>Wähle dein Profil für diese Demo-Session</div>
@@ -56,35 +51,29 @@ function Login({ onLogin }) {
           {/* Role picker */}
           <div style={loginStyles.roleGrid}>
             {roleProfiles.map(r => (
-              <div key={r.role} onClick={() => { setSelectedRole(r.role); setEmail(r.email); }}
-                style={{ ...loginStyles.roleCard, ...(selectedRole===r.role ? { ...loginStyles.roleCardActive, borderColor: r.color } : {}) }}>
+              <button type="button" key={r.role} onClick={() => { setSelectedRole(r.role); setEmail(r.email); }}
+                style={{ ...loginStyles.roleCard, ...(selected.id===r.id ? { ...loginStyles.roleCardActive, borderColor: r.color } : {}) }}>
                 <div style={{ ...loginStyles.roleAvatar, background: r.color }}>{r.initials}</div>
                 <div style={loginStyles.roleName}>{r.name}</div>
                 <div style={loginStyles.roleDesc}>{r.desc}</div>
-                {selectedRole===r.role && <div style={{ ...loginStyles.roleCheck, color: r.color }}>✓</div>}
-              </div>
+                {selected.id===r.id && <div style={{ ...loginStyles.roleCheck, color: r.color }}>✓</div>}
+              </button>
             ))}
           </div>
 
           <div style={{ marginBottom:14 }}>
-            <label style={loginStyles.label}>E-Mail</label>
-            <input style={loginStyles.input} value={email} onChange={e=>setEmail(e.target.value)} />
-          </div>
-          <div style={{ marginBottom:24 }}>
-            <label style={loginStyles.label}>Passwort</label>
-            <input style={loginStyles.input} type="password" value={pw} onChange={e=>setPw(e.target.value)} />
+            <label style={loginStyles.label} htmlFor="demo-profile">Beispielprofil</label>
+            <select id="demo-profile" style={loginStyles.input} value={selected.id} onChange={event => { const profile = MOCK_DATA.users.find(item => item.id === event.target.value); setEmail(profile.email); setSelectedRole(profile.role); }}>
+              {MOCK_DATA.users.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+            </select>
           </div>
 
           <button style={{ ...loginStyles.loginBtn, background: selected?.color || "#1D7A56" }}
-            onClick={handleLogin} disabled={loading}>
-            {loading ? (
-              <span style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                <span style={loginStyles.spinner} /> Anmelden…
-              </span>
-            ) : `Als ${selected?.name?.split(" ")[0]} anmelden →`}
+            onClick={handleLogin}>
+            {`Als ${selected?.name?.split(" ")[0]} anmelden →`}
           </button>
 
-          <div style={loginStyles.hint}>🔒 Demo-Modus · Keine echten Daten werden gespeichert</div>
+          <div style={loginStyles.hint}>Beispielprofile · Keine echte Anmeldung · Einsatzpläne werden lokal gespeichert</div>
         </div>
       </div>
     </div>

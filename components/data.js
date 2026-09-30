@@ -238,7 +238,7 @@ function initializeTreelineDatabase() {
   const storageKey = "treeline_database";
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
-    if (saved?.version === TREELINE_DB_VERSION && saved?.data?.trees?.length) {
+    if (saved?.version === TREELINE_DB_VERSION && Array.isArray(saved?.data?.trees)) {
       return saved.data;
     }
   } catch (e) {

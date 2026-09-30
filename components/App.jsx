@@ -12,6 +12,10 @@ function App() {
   const [tweaksVisible, setTweaksVisible] = React.useState(false);
   const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = React.useState(() => window.innerWidth > 768);
+  const { state: dispatchState } = useDispatchStore();
+  const boardParams = new URLSearchParams(location.search);
+  const [boardDate, setBoardDate] = React.useState(() => Dispatch.validDate(boardParams.get("date") || "") ? boardParams.get("date") : null);
+  const [showBoard, setShowBoard] = React.useState(() => boardParams.get("view") === "board");
 
   React.useEffect(() => { localStorage.setItem("treeline_nav", page); }, [page]);
   React.useEffect(() => { if (selectedTreeId) localStorage.setItem("treeline_selectedTree", selectedTreeId); }, [selectedTreeId]);
@@ -38,7 +42,7 @@ function App() {
     // Inject into mock data
     MOCK_DATA.currentUser = user;
     setLoggedIn(true);
-    setPage("dashboard");
+    setPage(user.role === "team" ? "inbox" : "dashboard");
     localStorage.setItem("treeline_user", JSON.stringify(user));
   }
 
@@ -70,6 +74,21 @@ function App() {
     setPage("map");
   }
 
+  function openBoard(date) {
+    setBoardDate(date); setShowBoard(true);
+    const url = new URL(location.href);
+    url.searchParams.set("view", "board");
+    if (date) url.searchParams.set("date", date); else url.searchParams.delete("date");
+    history.replaceState(null, "", url);
+  }
+
+  function closeBoard() {
+    setShowBoard(false);
+    const url = new URL(location.href);
+    url.searchParams.delete("view"); url.searchParams.delete("date");
+    history.replaceState(null, "", url);
+  }
+
   if (!loggedIn) {
     return <Login onLogin={handleLogin} />;
   }
@@ -77,9 +96,14 @@ function App() {
   const pageTitle = {
     dashboard:"Übersicht", orders:"Aufträge", map:"Karte", trees:"Bäume",
     measures:"Maßnahmen", pflanzung:"Neupflanzungen", team:"Team", upload:"Medien",
+    dispatch:"Einsatzplanung", inbox:"Postfach",
   };
 
   const user = currentUser || MOCK_DATA.currentUser;
+  const unreadCount = Object.values(dispatchState.days).flatMap(day => day.releases)
+    .filter(release => release.recipients.includes(user.id) && !dispatchState.receipts[`${user.id}:${release.id}`]).length;
+
+  if (showBoard && user.role !== "client") return <DispatchBoard initialDate={boardDate} onBack={closeBoard}/>;
 
   return (
     <div style={{ display:"flex", minHeight:"100vh", background: tweaks.bgColor, fontFamily: tweaks.font }}>
@@ -100,19 +124,13 @@ function App() {
             <div style={appStyles.topTitle}>{pageTitle[page]}</div>
           </div>
           <div className="app-top-right" style={appStyles.topRight}>
-            <div className="global-search" style={appStyles.searchWrap}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2.5">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input style={appStyles.searchInput} placeholder="Global suchen…" />
-            </div>
-            <div style={appStyles.notifBtn} title="Benachrichtigungen">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              <span style={appStyles.notifDot} />
-            </div>
+            <select className="demo-profile" aria-label="Demo-Profil wechseln" value={user.id} onChange={event => handleLogin(MOCK_DATA.users.find(profile => profile.id === event.target.value))}>
+              {MOCK_DATA.users.map(profile => <option key={profile.id} value={profile.id}>Demo: {profile.name}</option>)}
+            </select>
+            {user.role !== "client" && <button style={{...appStyles.notifBtn, border:0}} aria-label={`Postfach: ${unreadCount} ungelesen`} title={`Postfach: ${unreadCount} ungelesen`} onClick={() => handleNav("inbox")}>
+              <DispatchIcon name="Bell" size={16}/>
+              {unreadCount > 0 && <span style={appStyles.notifDot} />}
+            </button>}
             <button style={appStyles.logoutBtn} onClick={handleLogout} title="Abmelden">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -132,6 +150,8 @@ function App() {
           {page==="pflanzung" && <PflanzungView/>}
           {page==="team"      && <TeamView/>}
           {page==="upload"    && <UploadView/>}
+          {page==="dispatch" && <DispatchView currentUser={user} onBoard={openBoard}/>}
+          {page==="inbox" && user.role !== "client" && <DispatchInbox key={user.id} currentUser={user} onMap={handleOpenOrderMap}/>}
         </div>
       </div>
 
