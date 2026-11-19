@@ -10,7 +10,8 @@
     "test:smoke": "playwright test tests/smoke.spec.js",
     "test:unit": "node --test tests/*.test.cjs",
     "icons": "node scripts/vendor-icons.cjs",
-    "appwrite:setup": "node scripts/setup-appwrite.mjs"
+    "appwrite:setup": "node scripts/setup-appwrite.mjs",
+    "appwrite:dispatch": "node scripts/setup-dispatch.mjs"
   },
   "keywords": [
     "treeline",

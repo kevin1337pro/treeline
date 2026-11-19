@@ -153,7 +153,7 @@
       },
     };
   }
-  const api = { KEY, localDate, validDate, blankDay, latest, dirty, employees, matchesSearch, applyOrder, resourceBookings, validate, createRepository };
+  const api = { KEY, localDate, validDate, blankDay, latest, dirty, employees, matchesSearch, applyOrder, resourceBookings, validate, entryShape, snapshot, createRepository };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.Dispatch = api;

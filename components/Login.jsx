@@ -72,6 +72,7 @@ function Login({ onLogin }) {
           </button>
 
           <div style={loginStyles.hint}>Beispielprofile · Keine echte Anmeldung · Einsatzpläne werden lokal gespeichert</div>
+          <a className="dp-button" href="?betrieb=1">Zum Betriebszugang</a>
         </div>
       </div>
     </div>

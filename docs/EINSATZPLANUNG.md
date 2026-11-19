@@ -1,5 +1,9 @@
 # Digitale Einsatzliste
 
+Der separate [Betriebszugang mit Appwrite](BETRIEBSZUGANG.md) verbindet Büro,
+persönliche Postfächer und Wanddisplays. Die folgende Beschreibung der lokalen
+Vorschau gilt nur für die Demo ohne Betriebsanmeldung.
+
 ## Umfang dieser Vorschau
 
 Die Liste ersetzt das Papierformular mit Baustelle, Fahrzeug, Beginn, Besonderheiten

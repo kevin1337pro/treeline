@@ -15,10 +15,10 @@ Postfaecher mit Lesebestaetigung sowie Aushang mit Druck und Seitenwechsel.
 
 Prioritaeten fuer die naechsten Iterationen:
 
-1. **P0: Sichere Zustellung.** Echte Konten zu Beispielprofilen zuordnen, private
-   Appwrite-Collections, serverseitige Freigabe, Display-Konto, Wiederverbindung.
-   Abnahme: Kira sieht seinen Plan auf einem zweiten Geraet; fremde Postfaecher
-   bleiben auch bei direkten API-Aufrufen unzugaenglich.
+1. **P0: Betriebszugang in der Cloud abnehmen.** Private Datenbank, Freigaben,
+   persönliche Bestätigungen und Display-Abruf sind implementiert. Projekt
+   reaktivieren, Schema bereitstellen, Pilotkonten zuordnen und auf echten
+   Geräten testen. [Einrichtung und Abnahme](docs/BETRIEBSZUGANG.md).
 2. **P1: Aussendienst offline.** Tagespaket aus Einsaetzen, Baumpositionen, Formularen
    und Medien lokal vorhalten. Warteschlange fuer Aenderungen mit sichtbarem
    Sync-Status und bewusstem Konfliktdialog. Kartenlizenzen vor Offline-Caching pruefen.

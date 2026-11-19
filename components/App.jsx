@@ -225,4 +225,4 @@ const appStyles = {
 };
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+root.render(new URLSearchParams(location.search).has("betrieb") ? <CloudDispatchApp/> : <App/>);

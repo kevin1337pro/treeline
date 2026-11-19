@@ -5,7 +5,8 @@ Die Website ist eine oeffentlich erreichbare Demo, kein produktives Mitarbeiterp
 
 ## Naechster Pilot
 
-1. **Büro, Handy und Wand-iPad verbinden.** Tagesplan mit zwei Einsätzen freigeben,
+1. **Büro, Handy und Wand-iPad: Live-Abnahme.** Der [Appwrite-Betriebszugang](BETRIEBSZUGANG.md)
+   ist implementiert. Nach Projektaktivierung und Kontozuordnung einen Tagesplan mit zwei Einsätzen freigeben,
    eine Mannschaft umteilen und die neue Version auf beiden Geräten anzeigen.
    Das Büro sieht, wer die Änderung bestätigt hat. Das Display erhält ein eigenes Lesekonto.
 2. **Fahrer je Fahrzeug einteilen.** Für Hubsteiger und Gespann jeweils Fahrer,
@@ -25,7 +26,7 @@ Die Website ist eine oeffentlich erreichbare Demo, kein produktives Mitarbeiterp
 - Mobile Layouts, Browser- und Logiktests sowie GitHub-Pages-Veröffentlichung.
 - Suchbare Auftrags- und Ressourcenauswahl, Vorbelegungen und Belegungshinweise mit fiktivem Planungskatalog.
 
-Die Einsatzplanung speichert nur im jeweiligen Browser. Lokal erstellte Listen
+Die lokale Demo speichert nur im jeweiligen Browser. Lokal erstellte Listen
 werden durch einen Git-Push weder hochgeladen noch auf die Live-Domain uebertragen.
 Ein zweites Handy oder Wand-iPad bekommt diese Listen deshalb noch nicht automatisch.
 

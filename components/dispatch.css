@@ -177,3 +177,12 @@
   .dp-board .dp-site > strong { font-size: 14px; }
   .dp-board .dp-time > strong { font-size: 18px; }
 }
+.dp-saving { border: 0; min-width: 0; padding: 0; margin: 0; }
+.dp-cloud-shell { height: 100dvh; overflow: auto; }
+.dp-cloud-header { display: flex; align-items: center; gap: 14px; padding: 8px 16px; border-bottom: 1px solid #d7dfda; background: white; }
+.dp-cloud-header img { height: 38px; max-width: 110px; object-fit: contain; }
+.dp-cloud-header span { margin-left: auto; }
+.dp-cloud-login { width: min(100%, 440px); margin: auto; display: grid; align-content: center; gap: 18px; overflow: auto; max-height: 100dvh; }
+.dp-cloud-login img { height: 70px; max-width: 100%; object-fit: contain; }
+.dp-cloud-login .dp-form-body { padding: 0; }
+@media print { .dp-cloud-header { display: none; } .dp-cloud-shell { height: auto; overflow: visible; } }

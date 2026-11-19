@@ -14,6 +14,10 @@ Die Einsatzplanung bietet suchbare Auftraege, Mitarbeiter, Fahrzeuge und Geraete
 mit Mehrfachauswahl, Vorbelegung und Belegungshinweisen. Die oeffentliche Demo nutzt erfundene Auftraege und Profile sowie eigene lokale Browserdaten. Eine private Installation kann Appwrite mit ihrer eigenen Konfiguration anbinden.
 
 [Bedienung, Datenmodell und sicherer Appwrite-Ausbau](docs/EINSATZPLANUNG.md).
+
+Der getrennte [Betriebszugang](docs/BETRIEBSZUGANG.md) unter
+`treeline.html?betrieb=1` nutzt Appwrite-Konten für Tagesplanfreigaben,
+persönliche Bestätigungen und die automatische Aktualisierung des Aushangs.
 [Priorisierte Erweiterungen und Vergleich mit QField, RIWA und Field Maps](ROADMAP.md).
 [Konkrete offene Aufgaben bis zum Produktivbetrieb](docs/OFFENE_AUFGABEN.md).
 
