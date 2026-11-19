@@ -17,7 +17,7 @@ Prioritaeten fuer die naechsten Iterationen:
 
 1. **P0: Sichere Zustellung.** Echte Konten zu Beispielprofilen zuordnen, private
    Appwrite-Collections, serverseitige Freigabe, Display-Konto, Wiederverbindung.
-   Abnahme: Kevin sieht seinen Plan auf einem zweiten Geraet; fremde Postfaecher
+   Abnahme: Kira sieht seinen Plan auf einem zweiten Geraet; fremde Postfaecher
    bleiben auch bei direkten API-Aufrufen unzugaenglich.
 2. **P1: Aussendienst offline.** Tagespaket aus Einsaetzen, Baumpositionen, Formularen
    und Medien lokal vorhalten. Warteschlange fuer Aenderungen mit sichtbarem

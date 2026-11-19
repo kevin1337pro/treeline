@@ -1,0 +1,25 @@
+.brand-logo { display: block; flex-shrink: 0; max-width: 100%; }
+.brand-logo img { display: block; width: 100%; height: auto; object-fit: contain; }
+
+.sidebar-brand { display: flex; align-items: center; justify-content: center; min-height: 78px; flex-shrink: 0; border-bottom: 1px solid #e5e5e0; }
+.sidebar-brand-link { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 4px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+.sidebar-brand-link:hover { background: #f4f7f1; }
+.sidebar-brand-link:focus-visible { outline: 2px solid #54852f; outline-offset: 2px; }
+.sidebar-brand-link .brand-logo { width: 176px; }
+.sidebar-collapsed .sidebar-brand-link { width: 44px; }
+.sidebar-collapsed .sidebar-brand-link .brand-logo { width: 34px; }
+
+.login-brand-logo { width: 300px; margin: 0 0 20px; }
+.login-mobile-logo { display: none; }
+
+.dp-board-brand .brand-logo { width: 88px; }
+.dp-board-brand > div { min-width: 0; }
+
+@media (max-width: 768px) {
+  .login-mobile-logo { display: block; width: 112px; margin: 0 auto 24px; }
+  .dp-board-brand .brand-logo { width: 64px; }
+}
+
+@media print {
+  .dp-board-brand .brand-logo { width: 72px; }
+}

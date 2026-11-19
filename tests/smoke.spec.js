@@ -17,9 +17,9 @@ test("login and primary navigation render without browser errors", async ({ page
     browserErrors.push(text);
   });
 
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await expect(page.getByRole("button", { name: "Karte" }).first()).toBeVisible();
-  await expect(page.getByText(/Willkommen, Markus/)).toBeVisible();
+  await expect(page.getByText(/Willkommen, Mara/)).toBeVisible();
 
   for (const label of ["Aufträge", "Karte", "Bäume", "Maßnahmen", "Neupflanzungen", "Team", "Medien"]) {
     await page.getByRole("button", { name: label }).first().click();
@@ -27,17 +27,18 @@ test("login and primary navigation render without browser errors", async ({ page
   }
 
   await page.getByRole("button", { name: "Karte" }).first().click();
-  await expect(page.getByRole("button", { name: "Satellit" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Auftrag fokussieren" })).toBeVisible();
-  await expect(page.getByText("Werkzeug")).toBeVisible();
+  await page.getByRole("button", { name: "Kartenansicht öffnen" }).click();
+  await expect(page.getByRole("radio", { name: "Satellit" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "3D-Ansicht" })).toBeVisible();
+  await page.getByRole("button", { name: "Werkzeug öffnen" }).click();
   await expect(page.getByRole("button", { name: "Route zeichnen" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "3D" })).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });
 
 test("measure creation adds a new item", async ({ page }) => {
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: "Maßnahmen" }).first().click();
   await page.getByRole("button", { name: "+ Neue Maßnahme" }).click();
   await page.locator("input[placeholder*='Kronenpflege']").fill("Smoke-Test Maßnahme");
@@ -47,31 +48,31 @@ test("measure creation adds a new item", async ({ page }) => {
 });
 
 test("sample order shows crew, vehicles and tree route", async ({ page }) => {
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: "Aufträge" }).first().click();
 
-  await expect(page.getByText("Kronenpflege Gahlener Straße Dorsten").first()).toBeVisible();
-  await expect(page.getByText("Kevin Stumpe", { exact: true })).toBeVisible();
-  await expect(page.getByText("Thorsten Thesing", { exact: true })).toBeVisible();
-  await expect(page.getByText("BOT - RR - 220").first()).toBeVisible();
-  await expect(page.getByText("BOT - BE - 118").first()).toBeVisible();
+  await expect(page.getByText("Kronenpflege Musterstraße Musterstadt").first()).toBeVisible();
+  await expect(page.getByText("Kira Saal", { exact: true })).toBeVisible();
+  await expect(page.getByText("Tilo Tal", { exact: true })).toBeVisible();
+  await expect(page.getByText("DEMO-LIFT-01").first()).toBeVisible();
+  await expect(page.getByText("DEMO-TRANS-42").first()).toBeVisible();
   await expect(page.getByText("Linke Straßenseite", { exact: true })).toBeVisible();
   await expect(page.getByText("Rechte Straßenseite", { exact: true })).toBeVisible();
 });
 
 test("existing order can be edited", async ({ page }) => {
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: "Aufträge" }).first().click();
   await page.getByRole("button", { name: "Bearbeiten" }).click();
-  await page.locator("input[placeholder='z.B. Kronenpflege Musterstraße']").fill("Kronenpflege Gahlener Straße aktualisiert");
+  await page.locator("input[placeholder='z.B. Kronenpflege Musterstraße']").fill("Kronenpflege Musterstraße aktualisiert");
   await page.getByRole("button", { name: "Änderungen speichern" }).click();
 
-  await expect(page.getByRole("heading", { name: "Kronenpflege Gahlener Straße aktualisiert" })).toBeVisible();
-  await expect(page.getByText("Kronenpflege Gahlener Straße aktualisiert").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kronenpflege Musterstraße aktualisiert" })).toBeVisible();
+  await expect(page.getByText("Kronenpflege Musterstraße aktualisiert").first()).toBeVisible();
 });
 
 test("order creation opens the selected order on the map", async ({ page }) => {
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: "Aufträge" }).first().click();
   await page.getByRole("button", { name: "Neuer Auftrag" }).click();
   await page.locator("input[placeholder='z.B. Kronenpflege Musterstraße']").fill("Kronenpflege Testallee");
@@ -89,7 +90,7 @@ test("mobile order and map controls stay reachable", async ({ page }) => {
   await page.goto("/treeline.html");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: /Navigation öffnen/ }).click();
   await page.getByRole("button", { name: "Aufträge" }).first().click();
 
@@ -105,11 +106,11 @@ test("mobile order and map controls stay reachable", async ({ page }) => {
 });
 
 test("team invite adds and selects a user", async ({ page }) => {
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: "Team" }).first().click();
   await page.getByRole("button", { name: "+ Einladen" }).click();
   await page.locator("input[placeholder='Max Mustermann']").fill("Laura Test");
-  await page.locator("input[placeholder='m.mustermann@enbergs.de']").fill("laura.test@example.com");
+  await page.locator("input[placeholder='m.mustermann@example.invalid']").fill("laura.test@example.com");
   await page.getByRole("button", { name: "Einladung senden" }).click();
 
   await expect(page.getByText("Laura Test").first()).toBeVisible();
@@ -117,7 +118,7 @@ test("team invite adds and selects a user", async ({ page }) => {
 });
 
 test("planting creation adds and selects a planting", async ({ page }) => {
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: "Neupflanzungen" }).first().click();
   await page.getByRole("button", { name: "+ Neu" }).click();
   await page.locator("input[placeholder='z.B. Stieleiche']").fill("Winterlinde");
@@ -130,10 +131,13 @@ test("planting creation adds and selects a planting", async ({ page }) => {
 });
 
 test("tree form auto-fills latin species", async ({ page }) => {
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await page.getByRole("button", { name: "Bäume" }).first().click();
   await page.getByRole("button", { name: "+ Neu" }).click();
   await page.locator("input[placeholder='z.B. Stieleiche']").fill("Stileiche");
 
-  await expect(page.locator("input[placeholder='Quercus robur']")).toHaveValue("Quercus robur");
+  const latin = page.locator("input[placeholder='Quercus robur']");
+  await expect(latin).toHaveValue("Quercus robur");
+  await page.locator("input[placeholder='z.B. Stieleiche']").fill("Traubeneiche");
+  await expect(latin).toHaveValue("Quercus petraea");
 });

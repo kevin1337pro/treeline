@@ -24,15 +24,11 @@ function Sidebar({ active, onNav, currentUser, onLogout, collapsed, onToggle }) 
       transition:"width 0.2s, min-width 0.2s", overflow:"hidden"
     }}>
       {/* Logo */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, padding: collapsed ? "16px 0" : "16px 14px",
-        borderBottom:"1px solid #e5e5e0", justifyContent: collapsed ? "center" : "flex-start" }}>
-        <img src="uploads/logo-1776797212104.png" alt="Enbergs" style={{width:34,height:34,objectFit:"contain",flexShrink:0}} />
-        {!collapsed && (
-          <div>
-            <div style={{fontWeight:700,fontSize:15,color:"#1D7A56",letterSpacing:"-0.3px",lineHeight:1.1}}>treeline</div>
-            <div style={{fontSize:9,color:"#aaa",letterSpacing:"0.2px"}}>Baummanagement</div>
-          </div>
-        )}
+      <div className="sidebar-brand">
+        <button type="button" className="sidebar-brand-link" onClick={() => onNav("dashboard")}
+          aria-label="Treeline: Übersicht öffnen" title="Treeline: Übersicht öffnen">
+          <BrandLogo variant={collapsed ? "symbol" : "horizontal"} alt=""/>
+        </button>
       </div>
 
       {/* Nav */}

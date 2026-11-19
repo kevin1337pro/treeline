@@ -1,8 +1,8 @@
 function App() {
-  const savedPage = localStorage.getItem("treeline_nav") || "login";
-  const savedTree = localStorage.getItem("treeline_selectedTree") || null;
-  const savedOrder = localStorage.getItem("treeline_selectedOrder") || null;
-  const savedUser = (() => { try { return JSON.parse(localStorage.getItem("treeline_user")); } catch(e){return null;} })();
+  const savedPage = localStorage.getItem("treeline_public_nav") || "login";
+  const savedTree = localStorage.getItem("treeline_public_selectedTree") || null;
+  const savedOrder = localStorage.getItem("treeline_public_selectedOrder") || null;
+  const savedUser = (() => { try { return JSON.parse(localStorage.getItem("treeline_public_user")); } catch(e){return null;} })();
 
   const [loggedIn, setLoggedIn] = React.useState(!!savedUser);
   const [currentUser, setCurrentUser] = React.useState(savedUser || null);
@@ -12,14 +12,15 @@ function App() {
   const [tweaksVisible, setTweaksVisible] = React.useState(false);
   const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = React.useState(() => window.innerWidth > 768);
+  const [dispatchDate, setDispatchDate] = React.useState(null);
   const { state: dispatchState } = useDispatchStore();
   const boardParams = new URLSearchParams(location.search);
   const [boardDate, setBoardDate] = React.useState(() => Dispatch.validDate(boardParams.get("date") || "") ? boardParams.get("date") : null);
   const [showBoard, setShowBoard] = React.useState(() => boardParams.get("view") === "board");
 
-  React.useEffect(() => { localStorage.setItem("treeline_nav", page); }, [page]);
-  React.useEffect(() => { if (selectedTreeId) localStorage.setItem("treeline_selectedTree", selectedTreeId); }, [selectedTreeId]);
-  React.useEffect(() => { if (selectedOrderId) localStorage.setItem("treeline_selectedOrder", selectedOrderId); }, [selectedOrderId]);
+  React.useEffect(() => { localStorage.setItem("treeline_public_nav", page); }, [page]);
+  React.useEffect(() => { if (selectedTreeId) localStorage.setItem("treeline_public_selectedTree", selectedTreeId); }, [selectedTreeId]);
+  React.useEffect(() => { if (selectedOrderId) localStorage.setItem("treeline_public_selectedOrder", selectedOrderId); }, [selectedOrderId]);
 
   React.useEffect(() => {
     function handleMessage(e) {
@@ -43,15 +44,15 @@ function App() {
     MOCK_DATA.currentUser = user;
     setLoggedIn(true);
     setPage(user.role === "team" ? "inbox" : "dashboard");
-    localStorage.setItem("treeline_user", JSON.stringify(user));
+    localStorage.setItem("treeline_public_user", JSON.stringify(user));
   }
 
   function handleLogout() {
     setLoggedIn(false);
     setCurrentUser(null);
     setPage("login");
-    localStorage.removeItem("treeline_user");
-    localStorage.removeItem("treeline_nav");
+    localStorage.removeItem("treeline_public_user");
+    localStorage.removeItem("treeline_public_nav");
   }
 
   function handleNav(id) {
@@ -72,6 +73,11 @@ function App() {
   function handleOpenOrderMap(id) {
     setSelectedOrderId(id);
     setPage("map");
+  }
+
+  function handleOpenDispatch(date) {
+    setDispatchDate(date);
+    handleNav("dispatch");
   }
 
   function openBoard(date) {
@@ -142,7 +148,7 @@ function App() {
 
         {/* Content */}
         <div style={{ flex:1, overflowY: page==="map"||page==="trees"||page==="pflanzung" ? "hidden" : "auto" }}>
-          {page==="dashboard" && <Dashboard currentUser={user} onNav={handleNav} onSelectTree={handleSelectTree}/>}
+          {page==="dashboard" && <Dashboard currentUser={user} onNav={handleNav} onSelectTree={handleSelectTree} onOpenDispatch={handleOpenDispatch} onOpenOrderMap={handleOpenOrderMap}/>}
           {page==="orders"    && <AuftraegeView selectedOrderId={selectedOrderId} onSelectOrder={handleSelectOrder} onOpenOrderMap={handleOpenOrderMap} onSelectTree={handleSelectTree}/>}
           {page==="map"       && <MapView selectedOrderId={selectedOrderId} onSelectOrder={handleSelectOrder} onSelectTree={handleSelectTree}/>}
           {page==="trees"     && <TreesView selectedTreeId={selectedTreeId} onSelectTree={setSelectedTreeId}/>}
@@ -150,7 +156,7 @@ function App() {
           {page==="pflanzung" && <PflanzungView/>}
           {page==="team"      && <TeamView/>}
           {page==="upload"    && <UploadView/>}
-          {page==="dispatch" && <DispatchView currentUser={user} onBoard={openBoard}/>}
+          {page==="dispatch" && <DispatchView currentUser={user} onBoard={openBoard} initialDate={dispatchDate}/>}
           {page==="inbox" && user.role !== "client" && <DispatchInbox key={user.id} currentUser={user} onMap={handleOpenOrderMap}/>}
         </div>
       </div>

@@ -1,18 +1,18 @@
 function PflanzungView() {
   const [plants, setPlants] = React.useState([
-    { id:"NEU-001", species:"Traubeneiche", latinName:"Quercus petraea", standort:"Parkanlage Scholven, Gelsenkirchen",
+    { id:"NEU-001", species:"Traubeneiche", latinName:"Quercus petraea", standort:"Parkanlage Nord, Beispielstadt",
       plannedDate:"2025-11-15", status:"geplant", count:3, size:"16/18 cm StU",
       reason:"Ersatzpflanzung nach Fällung Silberpappel", soil:"Lehmboden, pH 6.5",
       sunlight:"Vollsonne", waterReq:"mittel", notes:"Abstimmung mit Stadtverwaltung erforderlich",
-      assignedTo:"user-002", lat:51.5986, lng:6.9968, tags:["Ersatzpflanzung","Stadtbaum"] },
-    { id:"NEU-002", species:"Feldahorn", latinName:"Acer campestre", standort:"Schwedenstraße 12, Gelsenkirchen",
+      assignedTo:"user-002", lat:51.49162, lng:7.47912, tags:["Ersatzpflanzung","Stadtbaum"] },
+    { id:"NEU-002", species:"Feldahorn", latinName:"Acer campestre", standort:"Beispielweg 12, Beispielstadt",
       plannedDate:"2025-10-20", status:"in_vorbereitung", count:2, size:"12/14 cm StU",
       reason:"Straßenbaum-Ergänzung", soil:"Sandboden", sunlight:"Halbschatten", waterReq:"niedrig",
-      notes:"Bodenvorbereitung läuft", assignedTo:"user-002", lat:51.5965, lng:6.9924, tags:["Straßenbaum"] },
-    { id:"NEU-003", species:"Hainbuche", latinName:"Carpinus betulus", standort:"Waldrand Scholven West",
+      notes:"Bodenvorbereitung läuft", assignedTo:"user-002", lat:51.49171, lng:7.47905, tags:["Straßenbaum"] },
+    { id:"NEU-003", species:"Hainbuche", latinName:"Carpinus betulus", standort:"Waldrand Nord West",
       plannedDate:"2025-03-01", status:"abgeschlossen", count:8, size:"8/10 cm StU",
       reason:"Waldrandaufwertung", soil:"Lehmboden", sunlight:"Schatten", waterReq:"mittel",
-      notes:"Gepflanzt am 28.02.2025", assignedTo:"user-003", lat:51.6004, lng:6.9932, tags:["Forstpflanzung"] },
+      notes:"Gepflanzt am 28.02.2025", assignedTo:"user-003", lat:51.49176, lng:7.47930, tags:["Forstpflanzung"] },
   ]);
   const [showForm, setShowForm] = React.useState(false);
   const [selected, setSelected] = React.useState(plants[0]);
@@ -55,8 +55,8 @@ function PflanzungView() {
       latinName: newPlant.latinName.trim(),
       standort: newPlant.standort.trim(),
       count: Number(newPlant.count) || 1,
-      lat: 51.59683,
-      lng: 6.99559,
+      lat: 51.49162,
+      lng: 7.47912,
       tags: newPlant.tags.split(",").map(t => t.trim()).filter(Boolean),
     };
     setPlants(prev => [plant, ...prev]);

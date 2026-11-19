@@ -3,9 +3,7 @@
 ## Umfang dieser Vorschau
 
 Die Liste ersetzt das Papierformular mit Baustelle, Fahrzeug, Beginn, Besonderheiten
-und Mitarbeitern. Die Handschrift auf der Vorlage dient nur als Layoutreferenz:
-Es wurden keine vermeintlich echten Mitarbeiter oder Auftraege daraus angelegt.
-Verwendet werden die vorhandenen Beispielprofile, darunter Kevin und Thorsten.
+und Mitarbeitern. Der oeffentliche Planungskatalog enthaelt erfundene Auftraege, Mannschaften und Fahrzeuge.
 
 Die Einsatzplanung ist bewusst **lokal**, nicht mit Appwrite verbunden. Es gibt
 keine echten Anmeldungen, E-Mails, Push-Nachrichten oder geraeteuebergreifende
@@ -14,17 +12,22 @@ Auf einem anderen iPad erscheint diese lokale Liste noch nicht automatisch.
 
 ## Ablauf
 
-1. Als Markus anmelden und `Einsatzplanung` oeffnen. Standard ist der morgige Tag.
-2. `Neuer Einsatz`: Auftrag auswaehlen oder einen freien Hof-/Baustelleneinsatz
-   erfassen. Auftrag uebernimmt Adresse, Arbeit, Mannschaft, Fahrzeuge und Geraete.
+1. Als Mara anmelden und `Einsatzplanung` oeffnen. Standard ist der morgige Tag.
+2. `Neuer Einsatz`: Auftrag suchen und auswaehlen oder einen freien Einsatz
+   erfassen. Der Auftrag uebernimmt hinterlegte Angaben und Ressourcen. Ein
+   Wechsel bei vorhandenen Eingaben erfordert eine Entscheidung: Vorgaben
+   uebernehmen, nur verknuepfen oder abbrechen. Eigene Hinweise bleiben erhalten.
+   Mitarbeiter, Fahrzeuge und Geraete lassen sich suchen und mehrfach auswaehlen;
+   ausgewahlte Eintraege bleiben auch beim Filtern erhalten. `Alle Treffer`
+   betrifft nur die aktuelle Trefferliste. Zeitgleiche Belegungen sind sichtbar.
 3. Beginn, Ende, Treffpunkt und Besonderheiten ergaenzen. Speichern erzeugt einen
    Entwurf; zeitliche Doppelbelegungen werden abgewiesen. Nachtuebergreifende
    Einsaetze sind noch nicht enthalten und muessen auf zwei Tage verteilt werden.
 4. `Tagesplan freigeben` mit Bestaetigung erzeugt eine unveraenderliche Version.
-5. Im Kopfbereich `Demo: Kevin Stumpe` waehlen. Das Postfach zeigt nur die ihm
+5. Im Kopfbereich `Demo: Kira Saal` waehlen. Das Postfach zeigt nur die ihm
    zugeordneten Einsaetze und die Tageshinweise. `Als gelesen bestaetigen`
    speichert eine versionsbezogene Lesebestaetigung.
-6. Als Markus weiterbearbeiten und erneut freigeben. Bis dahin bleibt im
+6. Als Mara weiterbearbeiten und erneut freigeben. Bis dahin bleibt im
    Mitarbeiterpostfach und Aushang die alte Version sichtbar. Herausgenommene
    Mitarbeiter erhalten eine Mitteilung, dass sie nicht mehr eingeteilt sind.
 7. `Aushang` oeffnet eine schreibgeschuetzte Ansicht der letzten Freigabe. Datum,
@@ -42,7 +45,9 @@ Die Druckansicht enthaelt immer alle Einsaetze, nicht nur die sichtbare Seite.
 - `components/dispatch.js`: Domain-Logik und austauschbare Repository-Fabrik.
 - `components/DispatchView.jsx`: Disposition, Editor, Postfach, Aushang.
 - `components/dispatch.css`: gemeinsame, responsive Darstellung.
-- LocalStorage `treeline_dispatch_v1`: `schema`, `days`, `receipts`.
+- `components/planning-catalog.js`: einmalige, additive Katalogmigration im
+  lokalen Kernspeicher. Keine Cloud-Anfragen, keine automatische Tagesfreigabe.
+- LocalStorage `treeline_public_dispatch_v1`: `schema`, `days`, `receipts`.
 - Pro Tag: `version`, Entwurfszeilen, Tageshinweis und freigegebene `releases`.
 - Eine Freigabe speichert Namen und Fahrzeugkennzeichen als Snapshot; spaetere
   Stammdatenaenderungen schreiben historische Tageslisten nicht um.
@@ -100,7 +105,8 @@ und [Account-Sitzungen](https://appwrite.io/docs/references/cloud/client-web/acc
 ## Verifikation
 
 `npm run test:unit` prueft Freigabe, Unveraenderlichkeit, Empfaengerwechsel,
-Lesebestaetigung, Konflikte, ungueltige Eingaben, Speicherfehler und Datumskanten.
+Lesebestaetigung, Konflikte, ungueltige Eingaben, Speicherfehler, Datumskanten,
+Katalogmigration, Suche und Ressourcenverweise.
 `npm test` prueft bestehende Funktionen und den kompletten Ablauf mit Playwright,
 einschliesslich 320/390/768/1440px, Tab-Aktualisierung, Aushang und Druck.
 Cloud-Zugriffe werden in den Tests abgefangen; Testdaten gehen nicht an Appwrite.

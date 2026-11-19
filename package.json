@@ -8,7 +8,7 @@
     "start": "npm run dev",
     "test": "playwright test",
     "test:smoke": "playwright test tests/smoke.spec.js",
-    "test:unit": "node --test tests/dispatch.test.cjs",
+    "test:unit": "node --test tests/*.test.cjs",
     "icons": "node scripts/vendor-icons.cjs",
     "appwrite:setup": "node scripts/setup-appwrite.mjs"
   },

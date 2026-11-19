@@ -1,280 +1,150 @@
-function Dashboard({ currentUser, onNav, onSelectTree }) {
-  const { trees, measures, users, statusColors, measureTypes } = MOCK_DATA;
+function Dashboard({ currentUser, onNav, onSelectTree, onOpenDispatch, onOpenOrderMap }) {
+  const [today, setToday] = React.useState(() => DashboardData.today());
+  const [dayOffset, setDayOffset] = React.useState(0);
+  const [months, setMonths] = React.useState(6);
+  const [measureFilter, setMeasureFilter] = React.useState("open");
+  const [query, setQuery] = React.useState("");
+  const { state, error: dispatchError } = useDispatchStore();
+  React.useEffect(() => {
+    const refresh = () => setToday(DashboardData.today());
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener("focus", refresh);
+    return () => { clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, []);
+  const { trees = [], measures = [], users = [], statusColors = {}, measureTypes = {} } = MOCK_DATA;
+  const summary = DashboardData.summarize(MOCK_DATA, today);
+  const user = currentUser || MOCK_DATA.currentUser;
+  const office = user.role === "admin", client = user.role === "client";
+  const date = DashboardData.addDays(today, dayOffset);
+  const day = state.days[date], published = Dispatch.latest(day);
+  const release = office || published?.recipients.includes(user.id) ? published : null;
+  const isDraft = office && day && Dispatch.dirty(day);
+  const schedule = isDraft ? dispatchDraftRows(day.entries) : (release?.rows || []).filter(row => office || row.employeeIds.includes(user.id));
+  const monthly = DashboardData.monthly(measures, today, months);
+  const chartMax = Math.max(1, ...monthly.map(item => item.total));
+  const chartTotal = monthly.reduce((total, item) => total + item.total, 0);
+  const statusLabels = { gut: "Gut", mittel: "Mittel", schlecht: "Schlecht", kritisch: "Kritisch", unbekannt: "Nicht erfasst" };
+  const colors = { ...statusColors, unbekannt: "#8a969c" };
+  const statuses = Object.entries(summary.statusCounts).filter(([key, count]) => key !== "unbekannt" || count > 0);
+  let position = 0;
+  const segments = statuses.filter(([, count]) => count > 0).map(([key, count]) => {
+    const start = position;
+    position += count / Math.max(trees.length, 1) * 100;
+    return `${colors[key]} ${start}% ${position}%`;
+  });
+  const filtered = ({ open: summary.openMeasures, overdue: summary.overdue, week: summary.nextWeek })[measureFilter].filter(item => Dispatch.matchesSearch(item, query));
+  const names = ids => ids.map(id => users.find(item => item.id === id)?.name || "Nicht zugeordnet").join(", ");
+  const stateLabel = { geplant: "Geplant", in_arbeit: "In Arbeit", abgeschlossen: "Abgeschlossen" };
+  function openPlanning() { if (office) onOpenDispatch(date); else onNav("inbox"); }
 
-  const statusCount = { gut:0, mittel:0, schlecht:0, kritisch:0 };
-  trees.forEach(t => statusCount[t.status]++);
-  const certified    = trees.filter(t => t.certified).length;
-  const openMeasures = measures.filter(m => m.status !== "abgeschlossen").length;
-  const criticalTrees = trees.filter(t => t.status === "kritisch" || t.status === "schlecht");
-
-  const recentMeasures = [...measures].sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
-  const statusLabel = { gut:"Gut", mittel:"Mittel", schlecht:"Schlecht", kritisch:"Kritisch" };
-
-  // Mini donut SVG
-  function DonutChart({ data }) {
-    const total = data.reduce((s,d) => s+d.value, 0);
-    if (!total) return null;
-    let cum = 0;
-    const r = 40, cx = 50, cy = 50, stroke = 18;
-    const circumference = 2 * Math.PI * r;
-    const segments = data.map(d => {
-      const pct = d.value / total;
-      const offset = circumference * (1 - cum);
-      cum += pct;
-      return { ...d, pct, offset, dash: circumference * pct };
-    });
-    return (
-      <svg width="100" height="100" viewBox="0 0 100 100">
-        {segments.map((s, i) => (
-          <circle key={i} cx={cx} cy={cy} r={r}
-            fill="none" stroke={s.color} strokeWidth={stroke}
-            strokeDasharray={`${s.dash} ${circumference - s.dash}`}
-            strokeDashoffset={s.offset}
-            transform="rotate(-90 50 50)" />
-        ))}
-        <text x="50" y="54" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1a1a18">{total}</text>
-      </svg>
-    );
-  }
-
-  // Mini bar SVG
-  function BarChart({ data, height = 60 }) {
-    const max = Math.max(...data.map(d => d.value), 1);
-    const w = 100 / data.length;
-    return (
-      <svg width="100%" height={height} viewBox={`0 0 ${data.length * 24} ${height}`} preserveAspectRatio="none">
-        {data.map((d, i) => {
-          const barH = (d.value / max) * (height - 16);
-          return (
-            <g key={i}>
-              <rect x={i*24+2} y={height-16-barH} width={20} height={barH}
-                fill={d.color || "#1D7A56"} rx="3" />
-              <text x={i*24+12} y={height-2} textAnchor="middle" fontSize="8" fill="#aaa">{d.label}</text>
-            </g>
-          );
-        })}
-      </svg>
-    );
-  }
-
-  // Trend line SVG
-  function SparkLine({ data, color = "#1D7A56" }) {
-    if (!data || data.length < 2) return null;
-    const max = Math.max(...data, 1);
-    const w = 120, h = 36;
-    const pts = data.map((v, i) => `${(i / (data.length-1)) * w},${h - (v/max)*h}`).join(" ");
-    return (
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-        <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points={`0,${h} ${pts} ${w},${h}`} fill={color} opacity="0.1" />
-      </svg>
-    );
-  }
-
-  const donutData = Object.entries(statusCount).map(([k,v]) => ({ color: statusColors[k], value: v }));
-
-  const monthlyMeasures = [3,5,4,7,6,8].map((v, i) => ({
-    value: v, label: ["Nov","Dez","Jan","Feb","Mär","Apr"][i], color: "#1D7A56"
-  }));
-  const userName = currentUser?.name || MOCK_DATA.currentUser.name;
-
-  const mtypeSummary = Object.entries(measureTypes).slice(0,6).map(([k,v]) => ({
-    label: v.label.split(" ")[0], value: measures.filter(m=>m.type===k).length, color: v.color
-  })).filter(d => d.value > 0);
-
-  return (
-    <div className="dashboard-page" style={dbStyles.page}>
-      <div style={dbStyles.header}>
-        <div>
-          <h1 style={dbStyles.title}>Übersicht</h1>
-          <p style={dbStyles.sub}>Willkommen, {userName.split(" ")[0]} · {new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</p>
-        </div>
-        <button style={dbStyles.addBtn} onClick={() => onNav("trees")}>+ Neuer Baum</button>
+  return <main className="dashboard-page">
+    <header className="db-header">
+      <div><h1>Übersicht</h1><p>Willkommen, {user.name.split(" ")[0]} · {DashboardData.dateLabel(today, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p></div>
+      <div className="db-actions">
+        <button className="db-button" onClick={() => onNav("map")}><DispatchIcon name="MapPin"/>Karte öffnen</button>
+        {!client && <button className="db-button db-primary" onClick={openPlanning}><DispatchIcon name={office ? "CalendarDays" : "Inbox"}/>{office ? "Einsatzplanung öffnen" : "Mein Postfach"}</button>}
       </div>
+    </header>
 
-      {/* KPI row */}
-      <div className="stat-grid" style={dbStyles.statGrid}>
-        {[
-          { label:"Bäume gesamt", value:trees.length, sub:"erfasst", color:"#1D7A56", spark:[4,5,5,6,6,7] },
-          { label:"Zertifiziert",  value:certified,    sub:`${trees.length ? Math.round(certified/trees.length*100) : 0}% zertifiziert`, color:"#1565A0", spark:[2,2,3,4,4,5] },
-          { label:"Offene Maßnahmen", value:openMeasures, sub:"aktive Aufgaben", color:"#E6A817", spark:[5,4,6,5,4,5] },
-          { label:"Kritisch",     value:criticalTrees.length, sub:"Handlungsbedarf", color:"#B71C1C", spark:[1,2,1,2,1,2] },
-        ].map((s,i) => (
-          <div key={i} style={dbStyles.statCard}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <div>
-                <div style={{...dbStyles.statValue, color:s.color}}>{s.value}</div>
-                <div style={dbStyles.statLabel}>{s.label}</div>
-                <div style={dbStyles.statSub}>{s.sub}</div>
-              </div>
-              <SparkLine data={s.spark} color={s.color} />
-            </div>
-          </div>
-        ))}
-      </div>
+    <section className="db-stats" aria-label="Kennzahlen">
+      {[
+        { label: "Bäume gesamt", value: trees.length, sub: `${summary.certified} zertifiziert`, icon: "TreePine", tone: "green", page: "trees" },
+        { label: "Offene Aufträge", value: summary.openOrders.length, sub: `${summary.openOrders.filter(order => order.status === "in_arbeit").length} in Arbeit`, icon: "ClipboardList", tone: "blue", page: "orders" },
+        { label: "Offene Maßnahmen", value: summary.openMeasures.length, sub: `${summary.overdue.length} überfällig`, icon: "CalendarDays", tone: "amber", page: "measures" },
+        { label: "Bäume mit Handlungsbedarf", value: summary.criticalTrees.length, sub: `${summary.statusCounts.kritisch} kritisch · ${summary.statusCounts.schlecht} schlecht`, icon: "TriangleAlert", tone: "red", page: "trees" },
+      ].map(item => <button key={item.label} className={`db-stat db-${item.tone}`} onClick={() => onNav(item.page)}>
+        <span className="db-stat-top"><strong>{item.value}</strong><DispatchIcon name={item.icon} size={21}/></span>
+        <span className="db-stat-label">{item.label}</span><span className="db-muted">{item.sub}</span>
+      </button>)}
+    </section>
 
-      <div className="row3" style={dbStyles.row3}>
-        {/* Status Donut */}
-        <div style={dbStyles.card}>
-          <div style={dbStyles.cardTitle}>Baumstatus</div>
-          <div style={{display:"flex",alignItems:"center",gap:16}}>
-            <DonutChart data={donutData} />
-            <div style={{flex:1}}>
-              {Object.entries(statusCount).map(([st,count]) => (
-                <div key={st} style={dbStyles.barRow}>
-                  <span style={{...dbStyles.dot,background:statusColors[st]}}/>
-                  <span style={dbStyles.barLbl}>{statusLabel[st]}</span>
-                  <div style={dbStyles.barTrack}>
-                    <div style={{...dbStyles.barFill, width:`${trees.length?(count/trees.length)*100:0}%`, background:statusColors[st]}}/>
-                  </div>
-                  <span style={dbStyles.barN}>{count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+    <div className={`db-split db-operations ${client ? "db-single" : ""}`}>
+      {!client && <section className="db-section" aria-labelledby="db-schedule-heading">
+        <div className="db-section-heading"><div><h2 id="db-schedule-heading">{office ? "Einsätze" : "Meine Einsätze"}</h2><p>{DashboardData.dateLabel(date, { weekday: "short", day: "2-digit", month: "long" })} · Lokale Planung</p></div>
+          <div className="db-segmented" role="group" aria-label="Einsatztag">{["Heute", "Morgen"].map((label, index) => <button key={label} aria-pressed={dayOffset === index} onClick={() => setDayOffset(index)}>{label}</button>)}</div>
         </div>
+        {dispatchError ? <p className="db-error" role="alert">{dispatchError}</p> : <React.Fragment>
+          <div className="db-schedule-meta"><span>{schedule.length} Einsätze · {new Set(schedule.flatMap(row => row.employeeIds)).size} Mitarbeiter</span><span className={`db-badge ${isDraft ? "db-amber" : "db-green"}`}>{isDraft ? "Entwurf" : release ? `Freigegeben · V${release.revision}` : "Keine Freigabe"}</span></div>
+          {schedule.length ? <ul className="db-schedule">{schedule.slice(0, 3).map(row => <li key={row.id}>
+            <div className="db-time"><strong>{row.start}</strong><span>{row.end}</span></div>
+            <div><strong>{row.site}</strong><p>{row.address || "Adresse offen"}</p><p>{row.employees?.map(item => item.name).join(", ") || names(row.employeeIds)}</p><small>{[...(row.vehicles || []), ...(row.equipment || [])].map(item => item.name).join(" · ") || "Keine Fahrzeuge eingeplant"}</small></div>
+            {row.orderId && <button className="db-icon" aria-label={`Auftragskarte: ${row.site}`} title="Auftragskarte öffnen" onClick={() => onOpenOrderMap(row.orderId)}><DispatchIcon name="MapPin"/></button>}
+          </li>)}</ul> : <div className="db-empty"><DispatchIcon name="CalendarDays" size={26}/><strong>{office ? "Noch keine Einsätze geplant" : "Kein freigegebener Einsatz zugeteilt"}</strong></div>}
+          {(isDraft ? day.note : release?.note) && <p className="db-day-note">{isDraft ? day.note : release.note}</p>}
+          <button className="db-link" onClick={openPlanning}>{office ? "Tagesplanung öffnen" : "Postfach öffnen"}{schedule.length > 3 ? ` (${schedule.length})` : ""}<DispatchIcon name="ArrowRight" size={16}/></button>
+        </React.Fragment>}
+      </section>}
 
-        {/* Monthly bar */}
-        <div style={dbStyles.card}>
-          <div style={dbStyles.cardTitle}>Maßnahmen / Monat</div>
-          <div style={{marginTop:8}}>
-            <BarChart data={monthlyMeasures} height={72} />
-          </div>
-          <div style={{fontSize:11,color:"#aaa",marginTop:6}}>Letzten 6 Monate</div>
-        </div>
-
-        {/* Maßnahmen nach Typ */}
-        <div style={dbStyles.card}>
-          <div style={dbStyles.cardTitle}>Maßnahmentypen</div>
-          {mtypeSummary.map(d => (
-            <div key={d.label} style={dbStyles.barRow}>
-              <span style={{...dbStyles.dot,background:d.color}}/>
-              <span style={{...dbStyles.barLbl,width:80}}>{d.label}</span>
-              <div style={dbStyles.barTrack}>
-                <div style={{...dbStyles.barFill, width:`${(d.value/measures.length)*100}%`, background:d.color}}/>
-              </div>
-              <span style={dbStyles.barN}>{d.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="two-col" style={dbStyles.twoCol}>
-        {/* Handlungsbedarf */}
-        <div style={dbStyles.card}>
-          <div style={dbStyles.cardTitle}>⚠️ Handlungsbedarf</div>
-          {criticalTrees.length === 0 && <div style={dbStyles.empty}>Keine kritischen Bäume</div>}
-          {criticalTrees.map(t => (
-            <div key={t.id} style={dbStyles.alertRow}
-              onClick={() => { onNav("trees"); onSelectTree(t.id); }}>
-              <div style={{...dbStyles.alertDot, background:statusColors[t.status]}}/>
-              <div style={{flex:1}}>
-                <div style={dbStyles.alertName}>{t.name} <span style={dbStyles.alertId}>{t.id}</span></div>
-                <div style={dbStyles.alertNote}>{t.standort}</div>
-              </div>
-              <div style={{...dbStyles.badge,background:statusColors[t.status]+"20",color:statusColors[t.status]}}>
-                {statusLabel[t.status]}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Team-Auslastung */}
-        <div style={dbStyles.card}>
-          <div style={dbStyles.cardTitle}>Team-Auslastung</div>
-          {users.filter(u=>u.role!=="client").map(u => {
-            const assigned = measures.filter(m => m.assignedTo===u.id && m.status!=="abgeschlossen").length;
-            const max = 5;
-            return (
-              <div key={u.id} style={dbStyles.barRow}>
-                <div style={{...dbStyles.userMini,background:u.role==="admin"?"#1D7A56":u.role==="certifier"?"#6D4C41":"#1565A0"}}>
-                  {u.initials}
-                </div>
-                <span style={{...dbStyles.barLbl,width:80,fontSize:11}}>{u.name.split(" ")[0]}</span>
-                <div style={dbStyles.barTrack}>
-                  <div style={{...dbStyles.barFill,width:`${Math.min((assigned/max)*100,100)}%`,background:assigned>3?"#B71C1C":"#1D7A56"}}/>
-                </div>
-                <span style={dbStyles.barN}>{assigned}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Maßnahmentabelle */}
-      <div style={dbStyles.card}>
-        <div style={{...dbStyles.cardTitle,marginBottom:14}}>Anstehende Maßnahmen</div>
-        <div className="table-scroll" style={dbStyles.tableScroll}>
-          <table style={dbStyles.table}>
-            <thead>
-              <tr>{["Maßnahme","Baum","Typ","Fällig","Status","Priorität"].map(h=>(
-                <th key={h} style={dbStyles.th}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {recentMeasures.map(m => {
-                const tree = trees.find(t=>t.id===m.treeId);
-                const mt = measureTypes[m.type]||{};
-                const stStyle={geplant:{bg:"#EDF7F1",c:"#1D7A56"},in_arbeit:{bg:"#FFF8E1",c:"#E6A817"},abgeschlossen:{bg:"#F0F0F0",c:"#777"}}[m.status]||{};
-                const prStyle={kritisch:{bg:"#FFEBEE",c:"#B71C1C"},hoch:{bg:"#FFF3E0",c:"#E65100"},mittel:{bg:"#E8F5E9",c:"#2E7D52"},niedrig:{bg:"#F5F5F5",c:"#777"}}[m.priority]||{};
-                return (
-                  <tr key={m.id} style={dbStyles.tr}>
-                    <td style={dbStyles.td}><span style={dbStyles.tdMain}>{m.title}</span></td>
-                    <td style={dbStyles.td}><span style={dbStyles.treeChip}>{tree?tree.name:m.treeId}</span></td>
-                    <td style={dbStyles.td}><span style={{...dbStyles.badge,background:(mt.color||"#888")+"20",color:mt.color||"#888"}}>{mt.label||m.type}</span></td>
-                    <td style={dbStyles.td}>{m.date}</td>
-                    <td style={dbStyles.td}><span style={{...dbStyles.badge,background:stStyle.bg,color:stStyle.c}}>{{geplant:"Geplant",in_arbeit:"In Arbeit",abgeschlossen:"Abgeschlossen"}[m.status]}</span></td>
-                    <td style={dbStyles.td}><span style={{...dbStyles.badge,background:prStyle.bg,color:prStyle.c}}>{m.priority}</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <section className="db-section" aria-labelledby="db-alert-heading">
+        <div className="db-section-heading"><div><h2 id="db-alert-heading">Handlungsbedarf</h2><p>{summary.criticalTrees.length} Bäume mit auffälligem Zustand</p></div><DispatchIcon name="TriangleAlert" size={21}/></div>
+        {summary.criticalTrees.length ? <ul className="db-alerts">{summary.criticalTrees.slice(0, 3).map(tree => <li key={tree.id}><button onClick={() => onSelectTree(tree.id)}>
+          <span className="db-alert-copy"><strong>{tree.name}</strong><small>{tree.id}</small><span>{tree.standort || "Standort offen"}</span></span>
+          <span className={`db-badge ${tree.status === "kritisch" ? "db-red" : "db-amber"}`}>{statusLabels[tree.status]}</span>
+        </button></li>)}</ul> : <p className="db-empty">Keine kritischen oder schlechten Baumzustände erfasst.</p>}
+        {!!summary.overdue.length && <button className="db-overdue" onClick={() => { setMeasureFilter("overdue"); setQuery(""); document.getElementById("db-measures-heading")?.focus(); }}><DispatchIcon name="CalendarDays" size={18}/><span>{summary.overdue.length} {summary.overdue.length === 1 ? "überfällige Maßnahme" : "überfällige Maßnahmen"}</span><DispatchIcon name="ArrowRight" size={16}/></button>}
+        {summary.criticalTrees.length > 3 && <button className="db-link" onClick={() => onNav("trees")}>Alle Bäume öffnen<DispatchIcon name="ArrowRight" size={16}/></button>}
+      </section>
     </div>
-  );
-}
 
-const dbStyles = {
-  page:      { padding:"32px 36px", maxWidth:1280 },
-  header:    { display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 },
-  title:     { fontSize:26, fontWeight:700, color:"#1a1a18", margin:0, letterSpacing:"-0.4px" },
-  sub:       { fontSize:14, color:"#888", marginTop:4 },
-  addBtn:    { padding:"9px 18px", background:"#1D7A56", color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer" },
-  statGrid:  { display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 },
-  statCard:  { background:"#fff", border:"1px solid #e5e5e0", borderRadius:10, padding:"18px 20px" },
-  statValue: { fontSize:34, fontWeight:800, letterSpacing:"-1px", lineHeight:1 },
-  statLabel: { fontSize:13, fontWeight:600, color:"#333", marginTop:6 },
-  statSub:   { fontSize:11, color:"#aaa", marginTop:2 },
-  row3:      { display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginBottom:14 },
-  twoCol:    { display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 },
-  card:      { background:"#fff", border:"1px solid #e5e5e0", borderRadius:10, padding:"18px 20px", marginBottom:0 },
-  cardTitle: { fontSize:13, fontWeight:700, color:"#1a1a18", marginBottom:12 },
-  barRow:    { display:"flex", alignItems:"center", gap:8, marginBottom:9 },
-  dot:       { width:8, height:8, borderRadius:"50%", flexShrink:0 },
-  barLbl:    { fontSize:12, color:"#555", width:52 },
-  barTrack:  { flex:1, height:7, background:"#f0f0ee", borderRadius:4, overflow:"hidden" },
-  barFill:   { height:"100%", borderRadius:4, transition:"width 0.5s" },
-  barN:      { width:18, fontSize:12, fontWeight:700, color:"#333", textAlign:"right" },
-  userMini:  { width:24, height:24, borderRadius:"50%", color:"#fff", fontSize:9, fontWeight:700,
-               display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
-  alertRow:  { display:"flex", alignItems:"center", gap:12, padding:"10px 0",
-               borderBottom:"1px solid #f0f0ee", cursor:"pointer" },
-  alertDot:  { width:10, height:10, borderRadius:"50%", flexShrink:0 },
-  alertName: { fontSize:13, fontWeight:600, color:"#1a1a18" },
-  alertId:   { fontSize:11, color:"#aaa", fontWeight:400, marginLeft:4 },
-  alertNote: { fontSize:12, color:"#888", marginTop:2 },
-  empty:     { fontSize:13, color:"#aaa", padding:"16px 0" },
-  badge:     { display:"inline-block", padding:"3px 9px", borderRadius:100, fontSize:11, fontWeight:600 },
-  tableScroll:{ overflowX:"auto", width:"100%" },
-  table:     { width:"100%", borderCollapse:"collapse" },
-  th:        { textAlign:"left", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.5px",
-               textTransform:"uppercase", padding:"0 12px 10px 0", borderBottom:"1px solid #e5e5e0" },
-  tr:        { borderBottom:"1px solid #f5f5f2" },
-  td:        { padding:"11px 12px 11px 0", fontSize:13, color:"#444", verticalAlign:"middle" },
-  tdMain:    { fontWeight:500, color:"#1a1a18" },
-  treeChip:  { fontSize:12, color:"#1D7A56", background:"#EDF7F1", padding:"2px 8px", borderRadius:4 },
-};
+    <div className="db-split db-analytics">
+      <section className="db-section" aria-labelledby="db-monthly-heading">
+        <div className="db-section-heading"><div><h2 id="db-monthly-heading">Maßnahmen / Monat</h2><p>Nach Fälligkeit · {chartTotal} im Zeitraum</p></div>
+          <label className="db-period">Zeitraum<span className="db-select"><select aria-label="Diagrammzeitraum" value={months} onChange={event => setMonths(Number(event.target.value))}>{[3, 6, 12].map(value => <option key={value} value={value}>{value} Monate</option>)}</select><DispatchIcon name="ChevronDown" size={16}/></span></label>
+        </div>
+        <figure>
+          <div className="db-chart-scroll" tabIndex={0} aria-label="Monatsdiagramm">
+            <ol className="db-chart" style={{ gridTemplateColumns: `repeat(${months}, minmax(36px, 1fr))`, minWidth: months * 44 }}>
+              {monthly.map(item => <li key={item.key} role="img" aria-label={`${DashboardData.dateLabel(`${item.key}-01`, { month: "long", year: "numeric" })}: ${item.open} offen, ${item.done} abgeschlossen`} title={`${item.open} offen · ${item.done} abgeschlossen`}>
+                <strong className="db-chart-count">{item.total}</strong>
+                <div className="db-bar-track"><div className="db-bar-stack" style={{ height: `${item.total / chartMax * 100}%` }}>
+                  {item.open > 0 && <span className="db-bar-open" style={{ flexGrow: item.open }}/>}
+                  {item.done > 0 && <span className="db-bar-done" style={{ flexGrow: item.done }}/>}
+                </div></div>
+                <span className="db-month-label">{item.label}</span><small className="db-month-year">{item.year}</small>
+              </li>)}
+            </ol>
+          </div>
+          <figcaption className="db-chart-legend"><span><i className="db-bar-open"/>Offen</span><span><i className="db-bar-done"/>Abgeschlossen</span>{chartTotal === 0 && <span>Keine Maßnahmen im Zeitraum</span>}</figcaption>
+        </figure>
+      </section>
+
+      <section className="db-section" aria-labelledby="db-status-heading">
+        <div className="db-section-heading"><div><h2 id="db-status-heading">Baumbestand</h2><p>{summary.certified} von {trees.length} Bäumen zertifiziert</p></div></div>
+        <div className="db-tree-status">
+          <div className="db-donut" aria-hidden="true" style={{ background: segments.length ? `conic-gradient(${segments.join(", ")})` : "#e4e9ed" }}><div><strong>{trees.length}</strong><span>Bäume</span></div></div>
+          <ul>{statuses.map(([key, count]) => <li key={key}><span className="db-dot" style={{ background: colors[key] }}/><span>{statusLabels[key]}</span><strong>{count}</strong></li>)}</ul>
+        </div>
+      </section>
+    </div>
+
+    <div className={`db-split db-work ${!office ? "db-single" : ""}`}>
+      <section className="db-section" aria-labelledby="db-measures-heading">
+        <div className="db-section-heading"><div><h2 id="db-measures-heading" tabIndex={-1}>Maßnahmen im Blick</h2><p>{filtered.length} Treffer · nächste Fälligkeit zuerst</p></div><button className="db-link" onClick={() => onNav("measures")}>Alle Maßnahmen<DispatchIcon name="ArrowRight" size={16}/></button></div>
+        <div className="db-measure-controls"><div className="db-segmented" role="group" aria-label="Maßnahmen filtern">
+          {[["open", "Offen"], ["overdue", "Überfällig"], ["week", "Nächste 7 Tage"]].map(([key, label]) => <button key={key} aria-pressed={measureFilter === key} onClick={() => setMeasureFilter(key)}>{label}</button>)}
+        </div><label className="db-search"><DispatchIcon name="Search" size={17}/><input type="search" aria-label="Maßnahmen suchen" placeholder="Maßnahme suchen" value={query} onChange={event => setQuery(event.target.value)}/></label></div>
+        {filtered.length ? <ul className="db-measures">{filtered.slice(0, 6).map(measure => {
+          const tree = trees.find(item => item.id === measure.treeId);
+          const overdue = DashboardData.validDate(measure.date) && measure.date < today;
+          return <li key={measure.id}>
+            <div className="db-measure-title"><strong>{measure.title}</strong><small>{measureTypes[measure.type]?.label || measure.label || measure.type || "Typ offen"}</small><small>{users.find(item => item.id === measure.assignedTo)?.name || "Nicht zugeordnet"}</small></div>
+            <div className="db-due"><time dateTime={DashboardData.validDate(measure.date) ? measure.date : undefined}>{DashboardData.dateLabel(measure.date)}</time><span className={overdue ? "db-text-red" : "db-muted"}>{overdue ? "Überfällig" : measure.date === today ? "Heute fällig" : "Fälligkeit"}</span></div>
+            <span className={`db-badge ${measure.status === "in_arbeit" ? "db-blue" : "db-neutral"}`}>{stateLabel[measure.status] || "Status offen"}</span>
+            {tree ? <button className="db-icon" aria-label={`Baum öffnen: ${measure.title}`} title={`Baumprofil: ${tree.name}`} onClick={() => onSelectTree(tree.id)}><DispatchIcon name="TreePine" size={18}/></button> : <span/>}
+          </li>;
+        })}</ul> : <p className="db-empty">Keine Maßnahmen für diese Auswahl.</p>}
+        {filtered.length > 6 && <p className="db-muted db-list-footer">6 von {filtered.length} Maßnahmen</p>}
+      </section>
+
+      {office && <section className="db-section" aria-labelledby="db-team-heading">
+        <div className="db-section-heading"><div><h2 id="db-team-heading">Aufgaben im Team</h2><p>Offene Maßnahmen je Mitarbeiter</p></div><DispatchIcon name="Users" size={21}/></div>
+        {summary.workload.length ? <ul className="db-workload">{summary.workload.slice(0, 5).map(person => <li key={person.id}><div><span>{person.name}</span><strong>{person.count}</strong></div><div className="db-workload-track" aria-hidden="true"><span style={{ width: `${person.count / summary.workload[0].count * 100}%` }}/></div></li>)}</ul> : <p className="db-empty">Keine offenen Maßnahmen zugeordnet.</p>}
+        {!!summary.unassigned && <p className="db-day-note">{summary.unassigned} {summary.unassigned === 1 ? "Maßnahme" : "Maßnahmen"} ohne Mitarbeiterzuordnung</p>}
+        {summary.workload.length > 5 && <p className="db-muted">Weitere {summary.workload.length - 5} Mitarbeiter mit offenen Maßnahmen</p>}
+        <button className="db-link" onClick={() => onNav("team")}>Team öffnen<DispatchIcon name="ArrowRight" size={16}/></button>
+      </section>}
+    </div>
+  </main>;
+}
 
 Object.assign(window, { Dashboard });

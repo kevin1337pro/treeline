@@ -25,9 +25,9 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
     const nextDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     return {
       title:"",
-      client:"Stadt Dorsten",
+      client:"Stadt Musterstadt",
       street:"",
-      city:"Dorsten",
+      city:"Musterstadt",
       description:"",
       scheduledDate:nextDate,
       startTime:"07:30",
@@ -54,6 +54,7 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
 
   function canDrive(user, vehicle) {
     if (!user || !vehicle) return { ok:false, reason:"Nicht zugeordnet" };
+    if (!user.licenses?.length || !vehicle.requiredLicense || !vehicle.weightKg) return { ok:null, reason:"Daten fehlen" };
     const max = user.maxVehicleWeightKg;
     if (max && vehicle.weightKg > max) {
       return { ok:false, reason:`max. ${Math.round(max / 1000).toLocaleString("de-DE")}t` };
@@ -229,7 +230,7 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
         <div className="stat-grid" style={ovStyles.kpiGrid}>
           {[
             ["Bäume", orderTreeIds.length, "links/rechts erfasst"],
-            ["Dauer", `${selectedOrder.estimatedHours}h`, "geplante Tagesleistung"],
+            ["Dauer", selectedOrder.estimatedHours == null ? "offen" : `${selectedOrder.estimatedHours}h`, "geplante Tagesleistung"],
             ["Team", crew.length, crew.map(u=>u.initials).join(" + ")],
             ["Fortschritt", `${completedSteps}/${workflow.length}`, "Außendienst-Checkliste"],
           ].map(([label,value,sub])=>(
@@ -249,23 +250,25 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
                 <div style={ovStyles.avatar}>{user.initials}</div>
                 <div style={{flex:1}}>
                   <div style={ovStyles.crewName}>{user.name}</div>
-                  <div style={ovStyles.crewMeta}>Führerschein: {(user.licenses || []).join(", ")} · {user.maxVehicleWeightKg ? `bis ${user.maxVehicleWeightKg / 1000}t` : "alle Fahrzeuge"}</div>
+                  <div style={ovStyles.crewMeta}>Führerschein: {(user.licenses || []).join(", ") || "nicht erfasst"}{user.maxVehicleWeightKg ? ` · bis ${user.maxVehicleWeightKg / 1000}t` : ""}</div>
                 </div>
               </div>
             ))}
-            <div style={ovStyles.matrix}>
+            <div style={{overflowX:"auto"}}><div style={{...ovStyles.matrix,gridTemplateColumns:`minmax(150px,1.5fr) repeat(${Math.max(1,crew.length)},minmax(65px,1fr))`,minWidth:150 + Math.max(1,crew.length)*65}}>
               <div style={ovStyles.matrixHead}>Fahrzeug</div>
+              {!crew.length && <div style={ovStyles.matrixHead}>Kein Team</div>}
               {crew.map(user => <div key={user.id} style={ovStyles.matrixHead}>{user.initials}</div>)}
               {orderVehicles.map(vehicle => (
                 <React.Fragment key={vehicle.id}>
-                  <div style={ovStyles.matrixVehicle}>{vehicle.name}<br/><span>{vehicle.plate} · {(vehicle.weightKg/1000).toLocaleString("de-DE")}t</span></div>
+                  <div style={ovStyles.matrixVehicle}>{vehicle.name}<br/><span>{vehicle.plate || "Kennzeichen offen"} · {vehicle.weightKg ? `${(vehicle.weightKg/1000).toLocaleString("de-DE")}t` : "Gewicht offen"}</span></div>
+                  {!crew.length && <div style={ovStyles.driveCell}>Nicht zugeordnet</div>}
                   {crew.map(user => {
                     const result = canDrive(user, vehicle);
-                    return <div key={`${vehicle.id}-${user.id}`} style={{...ovStyles.driveCell,background:result.ok?"#EDF7F1":"#FFEBEE",color:result.ok?"#1D7A56":"#B71C1C"}}>{result.reason}</div>;
+                    return <div key={`${vehicle.id}-${user.id}`} style={{...ovStyles.driveCell,background:result.ok===null?"#f3f4f4":result.ok?"#EDF7F1":"#FFEBEE",color:result.ok===null?"#555":result.ok?"#1D7A56":"#B71C1C"}}>{result.reason}</div>;
                   })}
                 </React.Fragment>
               ))}
-            </div>
+            </div></div>
           </section>
 
           <section style={ovStyles.panel}>
@@ -274,7 +277,7 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
               <div key={vehicle.id} style={ovStyles.assetRow}>
                 <div>
                   <div style={ovStyles.assetName}>{vehicle.name}</div>
-                  <div style={ovStyles.assetMeta}>{vehicle.plate} · {(vehicle.weightKg/1000).toLocaleString("de-DE")}t · {vehicle.requiredLicense}</div>
+                  <div style={ovStyles.assetMeta}>{vehicle.plate || "Kennzeichen offen"} · {vehicle.weightKg ? `${(vehicle.weightKg/1000).toLocaleString("de-DE")}t` : "Gewicht offen"} · {vehicle.requiredLicense || "Führerscheinklasse offen"}</div>
                 </div>
                 <span style={ovStyles.assetBadge}>{vehicle.status}</span>
               </div>
@@ -283,7 +286,7 @@ function AuftraegeView({ selectedOrderId, onSelectOrder, onOpenOrderMap, onSelec
               <div key={item.id} style={ovStyles.assetRow}>
                 <div>
                   <div style={ovStyles.assetName}>{item.name}</div>
-                  <div style={ovStyles.assetMeta}>{item.requiredLicense} · gekoppelt an {getVehicle(item.attachedTo)?.plate}</div>
+                  <div style={ovStyles.assetMeta}>{item.requiredLicense || "Führerscheinklasse offen"} · {getVehicle(item.attachedTo)?.name || "Zugfahrzeug offen"}</div>
                 </div>
                 <span style={ovStyles.assetBadge}>{item.status}</span>
               </div>

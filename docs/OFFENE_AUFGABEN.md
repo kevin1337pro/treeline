@@ -1,7 +1,20 @@
 # Offene Aufgaben fuer Treeline
 
-Stand: 30.09.2026. Priorisierte Liste nach Pruefung des aktuellen Codes.
+Stand: 19.11.2026. Priorisierte Liste nach Pruefung des aktuellen Codes.
 Die Website ist eine oeffentlich erreichbare Demo, kein produktives Mitarbeiterportal.
+
+## Naechster Pilot
+
+1. **Büro, Handy und Wand-iPad verbinden.** Tagesplan mit zwei Einsätzen freigeben,
+   eine Mannschaft umteilen und die neue Version auf beiden Geräten anzeigen.
+   Das Büro sieht, wer die Änderung bestätigt hat. Das Display erhält ein eigenes Lesekonto.
+2. **Fahrer je Fahrzeug einteilen.** Für Hubsteiger und Gespann jeweils Fahrer,
+   Führerscheinklasse und zulässige Gesamtmasse erfassen. Fehlende Angaben und
+   Doppelbelegungen vor der Freigabe anzeigen.
+3. **Baum für Baum abarbeiten.** Im Postfach führt der Auftrag zum ersten offenen
+   Baum. Straßenseite, Baumnummer und GPS-Genauigkeit helfen beim Auffinden.
+   Die Kolonne erfasst erledigt oder blockiert mit Foto und Grund. Ein Test im
+   Flugmodus prüft, dass jede Rückmeldung nach Wiederverbindung genau einmal ankommt.
 
 ## Bereits vorhanden
 
@@ -10,12 +23,15 @@ Die Website ist eine oeffentlich erreichbare Demo, kein produktives Mitarbeiterp
 - Persoenliche Demo-Postfaecher, Lesebestaetigungen und Mitteilungen bei Umbesetzung.
 - Aushang mit Datumswahl, automatischem Seitenwechsel und Druck aller Einsaetze.
 - Mobile Layouts, Browser- und Logiktests sowie GitHub-Pages-Veröffentlichung.
+- Suchbare Auftrags- und Ressourcenauswahl, Vorbelegungen und Belegungshinweise mit fiktivem Planungskatalog.
 
 Die Einsatzplanung speichert nur im jeweiligen Browser. Lokal erstellte Listen
 werden durch einen Git-Push weder hochgeladen noch auf die Live-Domain uebertragen.
 Ein zweites Handy oder Wand-iPad bekommt diese Listen deshalb noch nicht automatisch.
 
 ## P0: Vor echtem Mitarbeitereinsatz
+
+- [ ] Betriebliche Stammdaten in einer privaten Installation pflegen und erst nach Anmeldung laden. Die öffentliche Demo nutzt fiktive Daten.
 
 - [ ] **Echte Konten und Rollen.** Appwrite-Anmeldung, Einladungen und Passwort-
   Wiederherstellung umsetzen; bestehende Beispielprofile echten Konten zuordnen.
@@ -36,7 +52,7 @@ Ein zweites Handy oder Wand-iPad bekommt diese Listen deshalb noch nicht automat
   geraeteuebergreifende Aktualisierung und Anzeige des letzten Sync-Zeitpunkts.
   Keine Administrator-Sitzung am Display; keine vertraulichen Personalnotizen.
 
-Abnahme P0: Das Buero gibt einen Plan frei. Kevin sieht ihn auf einem anderen
+Abnahme P0: Das Buero gibt einen Plan frei. Kira sieht ihn auf einem anderen
 Geraet und bestaetigt ihn. Die Bestaetigung erscheint im Buero. Fremde
 Postfaecher bleiben auch bei direkten API-Aufrufen gesperrt.
 

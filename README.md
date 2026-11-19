@@ -10,11 +10,26 @@ Vorhandene Beispielprofile lassen sich ueber die Auswahl im Kopfbereich wechseln
 Echte Konten werden spaeter zugeordnet. Die neue Planung speichert ausschliesslich
 lokal im Browser, ohne E-Mail-Versand oder Synchronisierung auf andere Geraete.
 
+Die Einsatzplanung bietet suchbare Auftraege, Mitarbeiter, Fahrzeuge und Geraete
+mit Mehrfachauswahl, Vorbelegung und Belegungshinweisen. Die oeffentliche Demo nutzt erfundene Auftraege und Profile sowie eigene lokale Browserdaten. Eine private Installation kann Appwrite mit ihrer eigenen Konfiguration anbinden.
+
 [Bedienung, Datenmodell und sicherer Appwrite-Ausbau](docs/EINSATZPLANUNG.md).
 [Priorisierte Erweiterungen und Vergleich mit QField, RIWA und Field Maps](ROADMAP.md).
 [Konkrete offene Aufgaben bis zum Produktivbetrieb](docs/OFFENE_AUFGABEN.md).
 
 ## Projektstatus
+
+### Uebersicht
+
+Die Startansicht zeigt Kennzahlen, Einsaetze fuer heute/morgen, dringende Baeume
+und eine filterbare Liste offener Massnahmen. Die Monatsgrafik zaehlt vorhandene
+Massnahmen nach Faelligkeitsdatum fuer 3, 6 oder 12 Monate, getrennt nach offen
+und abgeschlossen. Sie ist keine Auswertung tatsaechlicher Abschlusszeitpunkte.
+Die Teamliste zeigt Aufgabenanzahlen, keine angenommene Personalkapazitaet.
+Mitarbeiter sehen in der Einsatzvorschau nur eigene freigegebene Einsaetze;
+die Disposition sieht auch Entwuerfe. Es bleibt eine lokale Demo ohne echte
+Authentifizierung. Monatslabels sind HTML-Text und werden nicht mit einer SVG
+verzerrt. `tests/dashboard.*` pruefen Datenaggregation, Navigation und Layout.
 
 Das Projekt wurde als lokale Basis initialisiert mit:
 
@@ -95,12 +110,12 @@ Port wird lokal wiederverwendet; CI startet einen eigenen Server.
 
 ## Auftragsplanung
 
-Die App enthaelt einen Beispielauftrag fuer die Gahlener Strasse in Dorsten:
+Die App enthaelt einen Beispielauftrag fuer die Musterstrasse in Musterstadt:
 
-- Kevin Stumpe und Thorsten Thesing als Aussendienst-Team
+- Kira Saal und Tilo Tal als Aussendienst-Team
 - Fuehrerscheinpruefung fuer B, C/CE und Fahrzeuggewicht
-- Mercedes 22m Hubsteiger `BOT - RR - 220`
-- VW TGE 3 `BOT - BE - 118`
+- Mercedes 22m Hubsteiger `DEMO-LIFT-01`
+- VW TGE 3 `DEMO-TRANS-42`
 - Schliesing Hacker als Anhaenger am TGE
 - Baumroute links/rechts entlang der Strasse mit direkter Baumprofil-Oeffnung
 
@@ -115,11 +130,16 @@ Die Kartenansicht nutzt Mapbox GL JS mit umschaltbaren Kartenstilen:
 - Outdoor-Karte fuer Gelaende- und Umfeldbezug
 - helle Buerokarte fuer Planung
 - 3D-Schalter fuer Terrain/Pitch und 3D-Gebaeude, soweit Mapbox-Daten verfuegbar sind
-- Werkzeugpanel fuer Auswahl, Baum setzen und Route zeichnen
+- Schmale Auftragsleiste und drei eingeklappte Menues fuer Suche, Kartenansicht und Werkzeug
+- Werkzeugauswahl schliesst sich nach Auswahl; beim Zeichnen bleibt nur eine kompakte Aktionsleiste
+- Baumdetails ohne zusaetzliches Popup, auf Mobilgeraeten als begrenzter unterer Bereich
+- Kartenansicht vergroesserbar, Filter nach Baumzustand oder aktuellem Auftrag
 - Routenpunkte koennen rueckgaengig gemacht, geloescht oder lokal gespeichert werden
 - Auftrag direkt in der Karte auswaehlen und auf Baumroute oder Adresse fokussieren
 
-Der Public Token wird beim GitHub-Pages-Deploy aus dem Actions Secret `MAPBOX_PUBLIC_TOKEN` in `components/mapbox.config.js` geschrieben. Lokal kann fuer Entwicklung alternativ `localStorage.treeline_mapbox_token` gesetzt werden. In Mapbox sollte dieser Token auf die erlaubten Domains beschraenkt werden, zum Beispiel `localhost` und `kevin1337pro.github.io`.
+Das Repository enthält eine leere Kartenkonfiguration in `components/mapbox.config.js`. GitHub Pages verwendet das konfigurierte Actions-Secret `MAPBOX_PUBLIC_TOKEN` fuer die Live-Karte. Nur wenn diese Konfiguration leer ist, wird `localStorage.treeline_public_mapbox_token` als Entwicklungs-Fallback verwendet. Niemals einen geheimen Server-Token hier hinterlegen. Den Browser-Token im Mapbox-Konto auf die tatsaechlich verwendeten Domains beschraenken, beispielsweise die lokale Vorschau und `kevin1337pro.github.io` ([Mapbox Token-Sicherheit](https://docs.mapbox.com/help/dive-deeper/how-to-use-mapbox-securely/)).
+
+`tests/map.spec.js` prueft den echten Mapbox-Renderer mit einem kleinen Teststil: Routen, Baumaufnahme, Stilwechsel, Filter, Auftragswechsel und mobile Platzverhaeltnisse. Live-Satellitenbilder muessen zusaetzlich mit gueltigem Token und Netzwerk geprueft werden. Routen sind gezeichnete Arbeitslinien, keine automatisch berechnete Fahrzeugnavigation.
 
 ## Appwrite Setup
 

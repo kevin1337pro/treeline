@@ -1,17 +1,2 @@
-window.TREELINE_APPWRITE_CONFIG = {
-  endpoint: "https://fra.cloud.appwrite.io/v1",
-  projectId: "6a1eb74900004d821d08",
-  databaseId: "treeline",
-  treesCollectionId: "trees",
-  collectionIds: {
-    trees: "trees",
-    orders: "orders",
-    measures: "measures",
-    users: "users",
-    vehicles: "vehicles",
-    equipment: "equipment",
-    routes: "routes",
-    plantings: "plantings",
-    media: "media",
-  },
-};
+// Public preview uses browser storage. Private deployments supply their own configuration.
+window.TREELINE_APPWRITE_CONFIG = {};

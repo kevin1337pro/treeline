@@ -1,7 +1,7 @@
 function getTreelineAppwriteConfig() {
   if (window.TREELINE_APPWRITE_CONFIG) return window.TREELINE_APPWRITE_CONFIG;
   try {
-    return JSON.parse(localStorage.getItem("treeline_appwrite_config"));
+    return JSON.parse(localStorage.getItem("treeline_public_appwrite_config"));
   } catch (e) {
     return null;
   }

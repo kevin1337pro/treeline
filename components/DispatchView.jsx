@@ -5,7 +5,7 @@ function DispatchIcon({ name, size = 18 }) {
 }
 
 function DispatchIconButton({ icon, label, ...props }) {
-  return <button className="dp-icon" aria-label={label} title={label} {...props}><DispatchIcon name={icon}/></button>;
+  return <button type="button" className="dp-icon" aria-label={label} title={label} {...props}><DispatchIcon name={icon}/></button>;
 }
 
 function useDispatchStore() {
@@ -55,26 +55,70 @@ function DispatchDialog({ title, children, onClose }) {
   </dialog>;
 }
 
-function DispatchEntryForm({ entry, onSave, onClose, error }) {
+function DispatchResourcePicker({ title, records, selected, onChange, bookings }) {
+  const [query, setQuery] = React.useState("");
+  const [onlySelected, setOnlySelected] = React.useState(false);
+  const filtered = records.filter(record => Dispatch.matchesSearch(record, query) && (!onlySelected || selected.includes(record.id)))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  const allChecked = filtered.length > 0 && filtered.every(record => selected.includes(record.id));
+  const bulkRef = React.useRef();
+  React.useEffect(() => { bulkRef.current.indeterminate = !allChecked && filtered.some(record => selected.includes(record.id)); }, [allChecked, filtered, selected]);
+  function toggle(id, checked) { onChange(checked ? [...new Set([...selected, id])] : selected.filter(value => value !== id)); }
+  return <fieldset className="dp-picker">
+    <legend>{title} <span className="dp-muted">{selected.length} ausgewählt</span></legend>
+    {!!selected.length && <ul className="dp-selection" aria-label={`${title}: Auswahl`}>{selected.map(id => {
+      const record = records.find(item => item.id === id);
+      return <li key={id}><span>{record?.name || id}</span><DispatchIconButton icon="X" label={`${record?.name || id} abwählen`} onClick={() => toggle(id, false)}/></li>;
+    })}</ul>}
+    <input type="search" aria-label={`${title} suchen`} placeholder={`${title} suchen`} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === "Enter") event.preventDefault(); }}/>
+    <div className="dp-picker-filters">
+      <label className="dp-checkbox"><input type="checkbox" checked={onlySelected} onChange={event => setOnlySelected(event.target.checked)}/>Nur ausgewählte</label>
+      <span className="dp-muted" role="status">{filtered.length} Treffer</span>
+    </div>
+    <div className="dp-choices" aria-label={`${title}: Treffer`}>
+      {filtered.map(record => {
+        const busy = bookings(record.id);
+        return <label key={record.id} className={selected.includes(record.id) ? "dp-choice-selected" : ""}>
+          <input type="checkbox" aria-label={record.name} checked={selected.includes(record.id)} onChange={event => toggle(record.id, event.target.checked)}/>
+          <span>{record.name}{record.plate && <small>{record.plate}</small>}{record.reviewNote && <small className="dp-review" title={record.reviewNote}>Angabe prüfen</small>}
+            {!!busy.length && <small className="dp-busy">Belegt: {busy.map(item => `${item.site} (${item.start}–${item.end})`).join(", ")}</small>}
+          </span>
+        </label>;
+      })}
+      {!filtered.length && <p className="dp-muted dp-no-results">Keine Treffer</p>}
+    </div>
+    <label className="dp-checkbox dp-picker-all"><input ref={bulkRef} type="checkbox" checked={allChecked} disabled={!filtered.length} onChange={event => onChange(event.target.checked ? [...new Set([...selected, ...filtered.map(record => record.id)])] : selected.filter(id => !filtered.some(record => record.id === id)))}/>Alle Treffer auswählen</label>
+  </fieldset>;
+}
+
+function DispatchEntryForm({ entry, entries, onSave, onClose, error }) {
   const [form, setForm] = React.useState(entry);
+  const [orderQuery, setOrderQuery] = React.useState("");
+  const [pendingOrder, setPendingOrder] = React.useState(null);
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
   function orderChanged(id) {
     const order = MOCK_DATA.orders.find(item => item.id === id);
+    setPendingOrder(null);
     if (!order) { set("orderId", ""); return; }
-    setForm(current => ({ ...current, orderId: id, site: order.title, address: [order.street, order.city].filter(Boolean).join(", "),
-      task: order.description || "", start: order.startTime || "07:00", employeeIds: [...(order.crewIds || [])],
-      vehicleIds: [...(order.vehicleIds || [])], equipmentIds: [...(order.equipmentIds || [])] }));
+    if (order.id === form.orderId) return;
+    if (form.site || form.address || form.task || form.employeeIds.length || form.vehicleIds.length || form.equipmentIds.length) setPendingOrder(order);
+    else setForm(current => Dispatch.applyOrder(current, order));
   }
-  function choices(title, field, records) {
-    return <fieldset><legend>{title}</legend><div className="dp-choices">{records.map(record => <label key={record.id}>
-      <input type="checkbox" checked={form[field].includes(record.id)} onChange={event => set(field, event.target.checked ? [...form[field], record.id] : form[field].filter(id => id !== record.id))}/>
-      <span>{record.name}{record.plate && <small>{record.plate}</small>}</span>
-    </label>)}</div></fieldset>;
-  }
-  return <form onSubmit={event => { event.preventDefault(); onSave(form); }}>
+  const selectedOrder = MOCK_DATA.orders.find(item => item.id === (pendingOrder?.id || form.orderId));
+  const orders = MOCK_DATA.orders.filter(order => order.id === selectedOrder?.id || Dispatch.matchesSearch(order, orderQuery));
+  const reviewNotes = [selectedOrder, ...Dispatch.employees(MOCK_DATA).filter(item => form.employeeIds.includes(item.id)), ...MOCK_DATA.vehicles.filter(item => form.vehicleIds.includes(item.id)), ...MOCK_DATA.equipment.filter(item => form.equipmentIds.includes(item.id))].filter(item => item?.reviewNote);
+  return <form onSubmit={event => { event.preventDefault(); if (!pendingOrder) onSave(form); }}>
     <div className="dp-form-body">
-      <label>Auftrag<span className="dp-select"><select aria-label="Auftrag" value={form.orderId} onChange={event => orderChanged(event.target.value)}><option value="">Ohne Auftrag / Hofeinsatz</option>{MOCK_DATA.orders.map(order => <option key={order.id} value={order.id}>{order.id} · {order.title}</option>)}</select><DispatchIcon name="ChevronDown"/></span></label>
-      <label>Baustelle<input autoFocus required maxLength={160} value={form.site} onChange={event => set("site", event.target.value)}/></label>
+      <label>Aufträge suchen<input type="search" autoFocus value={orderQuery} onChange={event => setOrderQuery(event.target.value)} onKeyDown={event => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Auftrag, Baustelle, Ort oder Kunde"/></label>
+      <label>Auftrag<span className="dp-select"><select aria-label="Auftrag" value={pendingOrder?.id || form.orderId} onChange={event => orderChanged(event.target.value)}><option value="">Ohne Auftrag / freier Einsatz</option>{orders.map(order => <option key={order.id} value={order.id}>{order.title} · {order.id}</option>)}</select><DispatchIcon name="ChevronDown"/></span></label>
+      {!orders.length && <p className="dp-muted" role="status">Keine passenden Aufträge</p>}
+      {pendingOrder && <div className="dp-order-change" role="group" aria-label="Auftragswechsel bestätigen"><strong>Vorhandene Eingaben</strong><p>{pendingOrder.title}</p><div className="dp-actions">
+        <button type="button" className="dp-button dp-primary" onClick={() => { setForm(current => Dispatch.applyOrder(current, pendingOrder)); setPendingOrder(null); }}>Vorgaben übernehmen</button>
+        <button type="button" className="dp-button" onClick={() => { set("orderId", pendingOrder.id); setPendingOrder(null); }}>Nur verknüpfen</button>
+        <button type="button" className="dp-button" onClick={() => setPendingOrder(null)}>Wechsel abbrechen</button>
+      </div></div>}
+      {selectedOrder?.source && <p className="dp-muted">{selectedOrder.source} · {selectedOrder.startTime ? `Beginn laut Vorlage ${selectedOrder.startTime}` : "Beginn und Ende nicht angegeben"} · Adressen und Arbeitsumfang noch offen</p>}
+      <label>Baustelle<input required maxLength={160} value={form.site} onChange={event => set("site", event.target.value)}/></label>
       <label>Adresse / Abschnitt<input maxLength={240} value={form.address} onChange={event => set("address", event.target.value)}/></label>
       <div className="dp-form-columns">
         <label>Beginn<input type="time" required value={form.start} onChange={event => set("start", event.target.value)}/></label>
@@ -82,13 +126,12 @@ function DispatchEntryForm({ entry, onSave, onClose, error }) {
       </div>
       <label>Treffpunkt<input maxLength={200} value={form.meeting} onChange={event => set("meeting", event.target.value)}/></label>
       <label>Arbeiten<textarea rows={2} maxLength={2000} value={form.task} onChange={event => set("task", event.target.value)}/></label>
-      {choices("Mitarbeiter", "employeeIds", Dispatch.employees(MOCK_DATA))}
-      {choices("Fahrzeuge", "vehicleIds", MOCK_DATA.vehicles)}
-      {choices("Geräte / Anhänger", "equipmentIds", MOCK_DATA.equipment)}
+      {[["Mitarbeiter", "employeeIds", Dispatch.employees(MOCK_DATA)], ["Fahrzeuge", "vehicleIds", MOCK_DATA.vehicles], ["Geräte / Anhänger", "equipmentIds", MOCK_DATA.equipment]].map(([title, field, records]) => <DispatchResourcePicker key={field} title={title} records={records} selected={form[field]} onChange={value => set(field, value)} bookings={id => Dispatch.resourceBookings(entries, form, field, id)}/>)}
+      {!!reviewNotes.length && <details className="dp-review-notes"><summary>{reviewNotes.length} Angaben zu prüfen</summary><ul>{reviewNotes.map(item => <li key={item.id}><strong>{item.name || item.title}:</strong> {item.reviewNote}</li>)}</ul></details>}
       <label>Besonderheiten<textarea rows={2} maxLength={2000} value={form.notes} onChange={event => set("notes", event.target.value)}/></label>
       {error && <p className="dp-error" role="alert">{error}</p>}
     </div>
-    <footer><button type="button" className="dp-button" onClick={onClose}>Abbrechen</button><button className="dp-button dp-primary" type="submit">Entwurf speichern</button></footer>
+    <footer><button type="button" className="dp-button" onClick={onClose}>Abbrechen</button><button className="dp-button dp-primary" type="submit" disabled={!!pendingOrder}>Entwurf speichern</button></footer>
   </form>;
 }
 
@@ -117,9 +160,9 @@ function dispatchDraftRows(entries) {
   }));
 }
 
-function DispatchView({ currentUser, onBoard }) {
+function DispatchView({ currentUser, onBoard, initialDate }) {
   const { state, error: storageError } = useDispatchStore();
-  const [date, setDate] = React.useState(() => Dispatch.localDate(1));
+  const [date, setDate] = React.useState(() => initialDate || Dispatch.localDate(1));
   const [dialog, setDialog] = React.useState(null);
   const [error, setError] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -134,7 +177,7 @@ function DispatchView({ currentUser, onBoard }) {
   }
   function edit(id) {
     const entry = day.entries.find(item => item.id === id) || { id: crypto.randomUUID(), orderId: "", site: "", address: "", start: "07:00", end: "15:30", meeting: "Betriebshof", task: "", notes: "", employeeIds: [], vehicleIds: [], equipmentIds: [] };
-    open({ type: "edit", entry, day });
+    open({ type: "edit", entry, day, isNew: !id });
   }
   const recipients = release?.recipients || [];
   const readCount = recipients.filter(id => state.receipts[`${id}:${release.id}`]).length;
@@ -145,12 +188,13 @@ function DispatchView({ currentUser, onBoard }) {
     <div className="dp-toolbar"><DispatchDatePicker date={date} onChange={value => { setDate(value); setStatus(""); setError(""); }}/><div className="dp-actions"><button className="dp-button" onClick={() => setDate(Dispatch.localDate())}>Heute</button><button className="dp-button" onClick={() => setDate(Dispatch.localDate(1))}>Morgen</button></div></div>
     <div className="dp-day-heading"><div><h2>{dispatchDateLabel(date)}</h2><p className="dp-muted">{day.entries.length} Einsätze · {new Set(day.entries.flatMap(entry => entry.employeeIds)).size} Mitarbeiter</p></div><span className={`dp-badge ${pending ? "dp-draft" : "dp-live"}`}>{pending ? "Entwurf" : `Freigegeben · Version ${release.revision}`}</span></div>
     {(storageError || (error && !dialog)) && <p className="dp-error" role="alert">{storageError || error}</p>}
+    {window.TREELINE_CATALOG_ERROR && <p className="dp-error" role="alert">{window.TREELINE_CATALOG_ERROR}</p>}
     {status && <p role="status" className="dp-success">{status}</p>}
     {day.entries.length ? <DispatchRows rows={dispatchDraftRows(day.entries)} onEdit={edit} onDelete={id => open({ type: "delete", id, day })}/> : <div className="dp-empty"><DispatchIcon name="CalendarDays" size={32}/><h3>Noch keine Einsätze</h3><p>{dispatchDateLabel(date)}</p><button className="dp-button" onClick={() => edit()} disabled={!!storageError}>Einsatz anlegen</button></div>}
     <div className="dp-day-note"><div><h3>Tageshinweis</h3><p>{day.note || "Kein Tageshinweis"}</p></div><DispatchIconButton icon="Pencil" label="Tageshinweis bearbeiten" disabled={!!storageError} onClick={() => open({ type: "note", note: day.note, day })}/></div>
     <div className="dp-publish-bar"><div><strong>{release ? `Zuletzt freigegeben: Version ${release.revision}` : "Noch nicht freigegeben"}</strong><p>{release ? `${dispatchTimeLabel(release.publishedAt)} · ${readCount}/${recipients.length} gelesen${pending ? " · Änderungen ausstehend" : ""}` : "Kein Eintrag im Mitarbeiterpostfach"}</p></div><button className="dp-button dp-primary" disabled={!pending || !!storageError || (!day.entries.length && !day.note)} onClick={() => open({ type: "publish", day })}><DispatchIcon name="Send"/>{release ? "Änderungen freigeben" : "Tagesplan freigeben"}</button></div>
-    {dialog && <DispatchDialog title={{ edit: "Einsatz bearbeiten", delete: "Einsatz entfernen?", note: "Tageshinweis", publish: "Tagesplan freigeben?" }[dialog.type]} onClose={() => setDialog(null)}>
-      {dialog.type === "edit" ? <DispatchEntryForm entry={dialog.entry} error={error} onClose={() => setDialog(null)} onSave={entry => act(() => DISPATCH_STORE.saveDraft(date, { ...dialog.day, entries: [...dialog.day.entries.filter(item => item.id !== entry.id), entry] }, dialog.day.version), "Entwurf gespeichert.")}/> : <form onSubmit={event => {
+    {dialog && <DispatchDialog title={{ edit: dialog.isNew ? "Neuer Einsatz" : "Einsatz bearbeiten", delete: "Einsatz entfernen?", note: "Tageshinweis", publish: "Tagesplan freigeben?" }[dialog.type]} onClose={() => setDialog(null)}>
+      {dialog.type === "edit" ? <DispatchEntryForm entry={dialog.entry} entries={day.entries} error={error} onClose={() => setDialog(null)} onSave={entry => act(() => DISPATCH_STORE.saveDraft(date, { ...dialog.day, entries: [...dialog.day.entries.filter(item => item.id !== entry.id), entry] }, dialog.day.version), "Entwurf gespeichert.")}/> : <form onSubmit={event => {
         event.preventDefault();
         act(() => {
           if (dialog.type === "publish") DISPATCH_STORE.publish(date, dialog.day.version, currentUser);
@@ -251,7 +295,7 @@ function DispatchBoard({ initialDate, onBack }) {
   }
   return <main className="dp-board dp-page">
     <div className="dp-board-tools"><DispatchIconButton icon="ArrowLeft" label="Zurück zur App" onClick={onBack}/><DispatchDatePicker date={date} onChange={chooseDate}/><label className="dp-checkbox"><input type="checkbox" checked={followToday} onChange={event => { setFollowToday(event.target.checked); if (event.target.checked) { setDate(Dispatch.localDate()); const url = new URL(location.href); url.searchParams.delete("date"); history.replaceState(null, "", url); } }}/>Aktueller Tag</label><div className="dp-actions"><DispatchIconButton icon="Printer" label="Einsatzliste drucken" onClick={() => window.print()}/><DispatchIconButton icon="Maximize" label="Vollbild" onClick={async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); else throw new Error(); } catch (_) { setFullscreenError("Vollbild ist in diesem Browser nicht verfügbar."); } }}/></div></div>
-    <header className="dp-board-header"><div className="dp-board-brand"><img src="uploads/logo-1776797212104.png" alt="Enbergs"/><div><p className="dp-eyebrow">Baumdienst Enbergs</p><h1>Tägliche Einsatzliste</h1><h2>{dispatchDateLabel(date)}</h2></div></div><div className="dp-board-clock"><strong>{now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</strong><span>Lokale Vorschau</span></div></header>
+    <header className="dp-board-header"><div className="dp-board-brand"><BrandLogo variant="stacked"/><div><p className="dp-eyebrow">Baumdienst Enbergs</p><h1>Tägliche Einsatzliste</h1><h2>{dispatchDateLabel(date)}</h2></div></div><div className="dp-board-clock"><strong>{now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</strong><span>Lokale Vorschau</span></div></header>
     {(error || fullscreenError) && <p className="dp-error" role="alert">{error || fullscreenError}</p>}
     {release ? <React.Fragment>
       <div className="dp-day-heading"><strong>{release.rows.length} Einsätze · {new Set(release.rows.flatMap(row => row.employeeIds)).size} Mitarbeiter</strong><span className="dp-badge dp-live">Freigegeben · Version {release.revision}</span></div>

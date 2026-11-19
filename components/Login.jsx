@@ -1,38 +1,35 @@
 function Login({ onLogin }) {
-  const [selectedRole, setSelectedRole] = React.useState("admin");
-  const [email, setEmail] = React.useState("m.enbergs@enbergs.de");
+  const [profileId, setProfileId] = React.useState("user-001");
 
   const roleProfiles = [
-    { id:"user-001", role:"admin",     name:"Markus Enbergs",   email:"m.enbergs@enbergs.de",   initials:"ME", team:"Geschäftsführung",
+    { id:"user-001", role:"admin",     name:"Mara Esche",   email:"office@example.invalid",   initials:"ME", team:"Geschäftsführung",
       color:"#1D7A56", desc:"Voller Zugriff" },
-    { id:"user-002", role:"team",      name:"Jan Becker",        email:"j.becker@enbergs.de",     initials:"JB", team:"Außendienst",
+    { id:"user-002", role:"team",      name:"Joris Bach",        email:"field@example.invalid",     initials:"JB", team:"Außendienst",
       color:"#1565A0", desc:"Bäume & Maßnahmen" },
-    { id:"user-003", role:"certifier", name:"Anna Schneider",    email:"a.schneider@enbergs.de",  initials:"AS", team:"Gutachten",
+    { id:"user-003", role:"certifier", name:"Alva Stein",    email:"inspection@example.invalid",  initials:"AS", team:"Gutachten",
       color:"#6D4C41", desc:"Zertifizierung" },
-    { id:"user-006", role:"client",    name:"Stadt Gelsenkirchen", email:"kontakt@gelsenkirchen.de", initials:"GE", team:"Auftraggeber",
+    { id:"user-006", role:"client",    name:"Stadt Beispielstadt", email:"client@example.invalid", initials:"GE", team:"Auftraggeber",
       color:"#555",    desc:"Nur Lesezugriff" },
   ];
 
   function handleLogin() {
-    const profile = MOCK_DATA.users.find(r => r.email === email) || roleProfiles.find(r => r.role === selectedRole);
-    onLogin({ ...profile });
+    onLogin({ ...selected });
   }
 
-  const selected = MOCK_DATA.users.find(r => r.email === email) || roleProfiles.find(r => r.role === selectedRole);
+  const selected = MOCK_DATA.users.find(r => r.id === profileId) || roleProfiles[0];
 
   return (
     <div style={loginStyles.wrap}>
       {/* Left: branding */}
       <div className="login-brand" style={loginStyles.left}>
         <div style={loginStyles.leftInner}>
-          <img src="uploads/logo-1776797212104.png" alt="Enbergs" style={loginStyles.logo} />
-          <div style={loginStyles.brand}>treeline</div>
+          <BrandLogo variant="dark" className="login-brand-logo"/>
           <div style={loginStyles.tagline}>Baummanagement & Dokumentation</div>
           <div style={loginStyles.vision}>
             "Bäume sind wichtig – und so behandeln wir sie. Jede Entscheidung in Pflege, Planung und Fällung wird nachvollziehbar."
           </div>
           <div style={loginStyles.statsRow}>
-            {[["7","Bäume erfasst"],["6","Maßnahmen geplant"],["5","Nutzer aktiv"]].map(([n,l]) => (
+            {[[MOCK_DATA.trees.length,"Bäume erfasst"],[MOCK_DATA.measures.filter(item => item.status === "geplant").length,"Maßnahmen geplant"],[MOCK_DATA.users.length,"Beispielprofile"]].map(([n,l]) => (
               <div key={l} style={loginStyles.stat}>
                 <div style={loginStyles.statN}>{n}</div>
                 <div style={loginStyles.statL}>{l}</div>
@@ -45,13 +42,14 @@ function Login({ onLogin }) {
       {/* Right: login form */}
       <div className="login-form-panel" style={loginStyles.right}>
         <div style={loginStyles.form}>
+          <BrandLogo variant="stacked" className="login-mobile-logo"/>
           <div style={loginStyles.formTitle}>Anmelden</div>
           <div style={loginStyles.formSub}>Wähle dein Profil für diese Demo-Session</div>
 
           {/* Role picker */}
           <div style={loginStyles.roleGrid}>
             {roleProfiles.map(r => (
-              <button type="button" key={r.role} onClick={() => { setSelectedRole(r.role); setEmail(r.email); }}
+              <button type="button" key={r.role} onClick={() => setProfileId(r.id)}
                 style={{ ...loginStyles.roleCard, ...(selected.id===r.id ? { ...loginStyles.roleCardActive, borderColor: r.color } : {}) }}>
                 <div style={{ ...loginStyles.roleAvatar, background: r.color }}>{r.initials}</div>
                 <div style={loginStyles.roleName}>{r.name}</div>
@@ -63,7 +61,7 @@ function Login({ onLogin }) {
 
           <div style={{ marginBottom:14 }}>
             <label style={loginStyles.label} htmlFor="demo-profile">Beispielprofil</label>
-            <select id="demo-profile" style={loginStyles.input} value={selected.id} onChange={event => { const profile = MOCK_DATA.users.find(item => item.id === event.target.value); setEmail(profile.email); setSelectedRole(profile.role); }}>
+            <select id="demo-profile" style={loginStyles.input} value={selected.id} onChange={event => setProfileId(event.target.value)}>
               {MOCK_DATA.users.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
             </select>
           </div>
@@ -82,11 +80,9 @@ function Login({ onLogin }) {
 
 const loginStyles = {
   wrap:        { display:"flex", minHeight:"100vh", fontFamily:"inherit" },
-  left:        { flex:"0 0 42%", background:"#1a2e1f", display:"flex", alignItems:"center", justifyContent:"center",
+  left:        { flex:"0 0 42%", background:"#18271e", display:"flex", alignItems:"center", justifyContent:"center",
                  padding:"48px" },
   leftInner:   { maxWidth:340 },
-  logo:        { width:56, height:56, objectFit:"contain", marginBottom:16 },
-  brand:       { fontSize:38, fontWeight:800, color:"#fff", letterSpacing:"-1px", lineHeight:1 },
   tagline:     { fontSize:14, color:"rgba(255,255,255,0.55)", marginTop:6, marginBottom:24 },
   vision:      { fontSize:13, color:"rgba(255,255,255,0.7)", lineHeight:1.7, fontStyle:"italic",
                  borderLeft:"3px solid #1D7A56", paddingLeft:14, marginBottom:32 },

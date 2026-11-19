@@ -1,12 +1,16 @@
 function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
   const mapRef = React.useRef(null);
   const mapboxMap = React.useRef(null);
-  const popupRef = React.useRef(null);
+  const latest = React.useRef({});
+  const focusRequest = React.useRef(0);
+  const shellRef = React.useRef(null);
+  const appliedStyle = React.useRef(null);
+  const styleReady = React.useRef(false);
   const addModeRef = React.useRef(false);
   const toolModeRef = React.useRef("select");
   const routeDraftRef = React.useRef([]);
   const selectedOrderRef = React.useRef(null);
-  const routeStorageKeyRef = React.useRef("treeline_route_draft_default");
+  const routeStorageKeyRef = React.useRef("treeline_public_route_draft_default");
   const listenersAttached = React.useRef(false);
   const [selectedTree, setSelectedTree] = React.useState(null);
   const [filter, setFilter] = React.useState("all");
@@ -14,7 +18,12 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
   const [placeStatus, setPlaceStatus] = React.useState("");
   const [mapStyle, setMapStyle] = React.useState("mapbox://styles/mapbox/satellite-streets-v12");
   const [toolMode, setToolMode] = React.useState("select");
-  const [toolsOpen, setToolsOpen] = React.useState(() => window.innerWidth > 768);
+  const [openPanel, setOpenPanel] = React.useState(null);
+  const [expanded, setExpanded] = React.useState(false);
+  const [mapReady, setMapReady] = React.useState(false);
+  const [mapError, setMapError] = React.useState("");
+  const [mapAttempt, setMapAttempt] = React.useState(0);
+  const [orderOnly, setOrderOnly] = React.useState(false);
   const [threeDEnabled, setThreeDEnabled] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [clickCoords, setClickCoords] = React.useState(null);
@@ -27,7 +36,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
 
   const { trees, statusColors, orders = [] } = MOCK_DATA;
   const mapboxToken = window.TREELINE_MAPBOX_TOKEN
-    || localStorage.getItem("treeline_mapbox_token")
+    || localStorage.getItem("treeline_public_mapbox_token")
     || window.TREELINE_APPWRITE_CONFIG?.mapboxToken;
   const statusLabel = { gut:"Gut", mittel:"Mittel", schlecht:"Schlecht", kritisch:"Kritisch" };
   const statusOpts = [["all","Alle"],["gut","Gut"],["mittel","Mittel"],["schlecht","Schlecht"],["kritisch","Kritisch"]];
@@ -39,16 +48,15 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
   ];
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId) || orders[0];
-  const routeStorageKey = `treeline_route_draft_${selectedOrder?.id || "default"}`;
+  const routeStorageKey = `treeline_public_route_draft_${selectedOrder?.id || "default"}`;
   const [routeDraft, setRouteDraft] = React.useState(() => {
     try {
       const initialOrderId = selectedOrderId || orders[0]?.id || "default";
-      const saved = JSON.parse(localStorage.getItem(`treeline_route_draft_${initialOrderId}`));
-      if (Array.isArray(saved) && saved.length) return saved;
+      const saved = JSON.parse(localStorage.getItem(`treeline_public_route_draft_${initialOrderId}`));
+      if (Array.isArray(saved) && saved.length) return validMapCoordinates(saved);
     } catch (e) {}
     return [];
   });
-  const [routeSavedAt, setRouteSavedAt] = React.useState("");
   const planningRoute = routeDraft.length ? routeDraft : getOrderPlanningCoordinates(selectedOrder);
   const activeToolLabel = { select:"Auswählen", tree:"Baum setzen", route:"Route zeichnen" }[toolMode];
 
@@ -57,12 +65,25 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
   }, [routeDraft]);
 
   React.useEffect(() => {
-    function syncToolPanel() {
-      if (window.innerWidth > 768) setToolsOpen(true);
+    function escape(event) {
+      if (event.key !== "Escape") return;
+      if (openPanel) {
+        setOpenPanel(null);
+        shellRef.current?.querySelector(`[data-panel="${openPanel}"]`)?.focus();
+      } else if (showAddForm) cancelAdd();
+      else if (selectedTree) setSelectedTree(null);
+      else if (toolMode !== "select") setToolMode("select");
+      else setExpanded(false);
     }
-    window.addEventListener("resize", syncToolPanel);
-    return () => window.removeEventListener("resize", syncToolPanel);
-  }, []);
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [openPanel, showAddForm, selectedTree, toolMode]);
+
+  React.useEffect(() => {
+    if (!placeStatus) return;
+    const timer = window.setTimeout(() => setPlaceStatus(""), 6000);
+    return () => window.clearTimeout(timer);
+  }, [placeStatus]);
 
   React.useEffect(() => {
     selectedOrderRef.current = selectedOrder;
@@ -71,15 +92,16 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
 
   React.useEffect(() => {
     if (!selectedOrder) return;
-    setPlaceQuery(orderSearchText(selectedOrder));
+    focusRequest.current += 1;
+    setPlaceQuery("");
     setSelectedTree(null);
-    popupRef.current?.remove();
     setShowAddForm(false);
+    setToolMode("select");
     setClickCoords(null);
     let restoredDraft = [];
     try {
       const saved = JSON.parse(localStorage.getItem(routeStorageKey));
-      const next = Array.isArray(saved) ? saved : [];
+      const next = validMapCoordinates(saved);
       restoredDraft = next;
       routeDraftRef.current = next;
       setRouteDraft(next);
@@ -87,7 +109,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
       routeDraftRef.current = [];
       setRouteDraft([]);
     }
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       if (restoredDraft.length) {
         fitOrderBounds(selectedOrder, restoredDraft);
         setPlaceStatus(`${selectedOrder.id} fokussiert.`);
@@ -95,31 +117,40 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
       }
       focusOrder(selectedOrder, { silent:false });
     }, 80);
+    return () => window.clearTimeout(timer);
   }, [selectedOrder?.id]);
 
   React.useEffect(() => {
     if (mapboxMap.current || !mapRef.current) return;
+    setMapReady(false);
+    styleReady.current = false;
+    setMapError("");
     if (!mapboxToken) {
-      setPlaceStatus("Mapbox Token fehlt.");
+      setMapError("Mapbox-Token fehlt. Bitte die Kartenkonfiguration prüfen.");
       return;
     }
     if (!window.mapboxgl) {
-      setPlaceStatus("Mapbox GL konnte nicht geladen werden.");
+      setMapError("Kartenbibliothek nicht geladen. Bitte die Seite neu laden.");
       return;
     }
 
     mapboxgl.accessToken = mapboxToken;
-    const orderCenter = getOrderCoordinates(null, selectedOrder)[0] || [6.96559, 51.59683];
-    const map = new mapboxgl.Map({
+    const orderCenter = getOrderCoordinates(null, selectedOrder)[0] || [7.47912, 51.49162];
+    let map;
+    try { map = new mapboxgl.Map({
       container: mapRef.current,
       style: mapStyle,
       center: orderCenter,
       zoom: selectedOrder ? 16.5 : 15,
-      pitch: 42,
-      bearing: -18,
+      pitch: 0,
+      bearing: 0,
       attributionControl: true,
-    });
+    }); } catch (error) {
+      setMapError("Karte konnte nicht gestartet werden. Bitte WebGL und die Verbindung prüfen.");
+      return;
+    }
     mapboxMap.current = map;
+    appliedStyle.current = mapStyle;
     map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
     map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
     map.addControl(new mapboxgl.GeolocateControl({
@@ -128,50 +159,70 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
       showUserHeading: true,
     }), "top-right");
 
-    map.on("load", () => {
-      addMapSourcesAndLayers();
-      attachMapListeners();
-      focusOrder(selectedOrder, { silent:true });
+    map.on("style.load", () => {
+      styleReady.current = true;
+      latest.current.addMapSourcesAndLayers();
+      latest.current.apply3DMode();
+      latest.current.updateMapData();
+      latest.current.attachMapListeners();
+      setMapReady(true);
+      setMapError("");
     });
+    map.on("load", () => {
+      if (toolModeRef.current === "select") latest.current.focusOrder(selectedOrderRef.current, { silent:true });
+    });
+    map.on("error", event => {
+      const status = event.error?.status;
+      setMapError(status === 401 || status === 403
+        ? "Mapbox-Zugriff abgelehnt. Token und erlaubte Domains prüfen."
+        : "Kartendaten konnten nicht vollständig geladen werden. Verbindung prüfen oder erneut laden.");
+    });
+    // Mapbox only observes window resizing, not sidebar/panel layout changes.
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(mapRef.current);
 
     return () => {
-      popupRef.current?.remove();
+      observer.disconnect();
+      focusRequest.current += 1;
       map.remove();
       mapboxMap.current = null;
       listenersAttached.current = false;
     };
-  }, []);
+  }, [mapAttempt]);
 
   React.useEffect(() => {
     toolModeRef.current = toolMode;
     addModeRef.current = toolMode === "tree";
     if (mapboxMap.current) {
       mapboxMap.current.getCanvas().style.cursor = toolMode === "select" ? "" : "crosshair";
+      if (toolMode === "route") mapboxMap.current.doubleClickZoom.disable();
+      else mapboxMap.current.doubleClickZoom.enable();
     }
-  }, [toolMode]);
+  }, [toolMode, mapAttempt]);
 
   React.useEffect(() => {
     const map = mapboxMap.current;
     if (!map) return;
-    map.setStyle(mapStyle);
-    map.once("style.load", () => {
-      addMapSourcesAndLayers();
-      apply3DMode();
-      updateMapData();
-      if (selectedTree) showTreePopup(selectedTree);
-    });
+    if (appliedStyle.current === mapStyle) return;
+    appliedStyle.current = mapStyle;
+    styleReady.current = false;
+    setMapReady(false);
+    // A full style load reliably restores our sources, including during route edits.
+    map.setStyle(mapStyle, { diff:false });
   }, [mapStyle]);
 
   React.useEffect(() => {
     updateMapData();
-  }, [filter, selectedOrder?.id, selectedTree?.id, clickCoords?.lat, clickCoords?.lng, trees.length, routeDraft]);
+  }, [filter, orderOnly, toolMode, selectedOrder?.id, selectedTree?.id, clickCoords?.lat, clickCoords?.lng, trees.length, routeDraft]);
 
   React.useEffect(() => {
     apply3DMode();
   }, [threeDEnabled]);
 
   function treeFeatures() {
-    const visibleTrees = filter === "all" ? trees : trees.filter(t => t.status === filter);
+    const visibleTrees = trees.filter(t => (filter === "all" || t.status === filter)
+      && (!orderOnly || t.orderId === selectedOrder?.id || selectedOrder?.treeIds?.includes(t.id))
+      && Number.isFinite(t.lng) && Number.isFinite(t.lat));
     return {
       type: "FeatureCollection",
       features: visibleTrees.map(tree => ({
@@ -185,7 +236,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
           color: statusColors[tree.status] || "#888",
           routeSide: tree.routeSide || "",
           routeIndex: tree.routeIndex || "",
-          routeLabel: tree.routeIndex ? String(tree.routeIndex) : "",
+          routeLabel: tree.routeIndex ? `${tree.routeSide === "links" ? "L" : tree.routeSide === "rechts" ? "R" : ""}${tree.routeIndex}` : "",
           orderId: tree.orderId || "",
         },
       })),
@@ -241,7 +292,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     if (!order) return [];
     return (order.treeIds || [])
       .map(id => trees.find(t => t.id === id))
-      .filter(t => t && (!side || t.routeSide === side))
+      .filter(t => t && Number.isFinite(t.lat) && Number.isFinite(t.lng) && (!side || t.routeSide === side))
       .sort((a, b) => (a.routeIndex || 0) - (b.routeIndex || 0));
   }
 
@@ -251,18 +302,14 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
 
   function getOrderPlanningCoordinates(order = selectedOrder) {
     if (!order) return [];
-    if (Array.isArray(order.planningRoute) && order.planningRoute.length) return order.planningRoute;
-    return getOrderCoordinates(null, order);
-  }
-
-  function orderSearchText(order = selectedOrder) {
-    if (!order) return "";
-    return [order.street, order.city, order.id].filter(Boolean).join(" ");
+    const saved = validMapCoordinates(order.planningRoute);
+    if (saved.length) return saved;
+    return [];
   }
 
   function addMapSourcesAndLayers() {
     const map = mapboxMap.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !styleReady.current) return;
 
     add3DBuildingsLayer();
 
@@ -305,7 +352,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
         type:"circle",
         source:"treeline-trees",
         paint:{
-          "circle-radius":["case", ["==", ["get", "id"], selectedTree?.id || ""], 10, 7],
+          "circle-radius":["case", ["==", ["get", "id"], selectedTree?.id || ""], 12, 10],
           "circle-color":["get", "color"],
           "circle-stroke-color":"#fff",
           "circle-stroke-width":2,
@@ -317,7 +364,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
         source:"treeline-trees",
         layout:{
           "text-field":["coalesce", ["get", "routeLabel"], ""],
-          "text-size":11,
+          "text-size":10,
           "text-font":["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-offset":[0, 0.05],
           "text-allow-overlap":true,
@@ -348,6 +395,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
         id:"treeline-planning-route-point-circle",
         type:"circle",
         source:"treeline-planning-route-points",
+        layout:{ visibility:toolMode === "route" ? "visible" : "none" },
         paint:{
           "circle-radius":10,
           "circle-color":"#111827",
@@ -360,6 +408,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
         type:"symbol",
         source:"treeline-planning-route-points",
         layout:{
+          visibility:toolMode === "route" ? "visible" : "none",
           "text-field":["get", "label"],
           "text-size":11,
           "text-font":["Open Sans Bold", "Arial Unicode MS Bold"],
@@ -399,7 +448,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
 
   function updateMapData() {
     const map = mapboxMap.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !styleReady.current) return;
     map.getSource("treeline-trees")?.setData(treeFeatures());
     map.getSource("treeline-temp-point")?.setData(tempFeature());
     map.getSource("treeline-left-route")?.setData(routeFeature("links"));
@@ -407,8 +456,11 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     map.getSource("treeline-planning-route")?.setData(planningRouteFeature());
     map.getSource("treeline-planning-route-points")?.setData(planningRoutePointsFeature());
     if (map.getLayer("treeline-tree-circle")) {
-      map.setPaintProperty("treeline-tree-circle", "circle-radius", ["case", ["==", ["get", "id"], selectedTree?.id || ""], 10, 7]);
+      map.setPaintProperty("treeline-tree-circle", "circle-radius", ["case", ["==", ["get", "id"], selectedTree?.id || ""], 12, 10]);
       map.setPaintProperty("treeline-tree-halo", "circle-radius", ["case", ["==", ["get", "id"], selectedTree?.id || ""], 18, 13]);
+    }
+    for (const layer of ["treeline-planning-route-point-circle", "treeline-planning-route-point-label"]) {
+      if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", toolMode === "route" ? "visible" : "none");
     }
   }
 
@@ -420,7 +472,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     map.on("click", "treeline-tree-circle", e => {
       const id = e.features?.[0]?.properties?.id;
       const tree = trees.find(t => t.id === id);
-      if (tree) selectTree(tree);
+      if (tree && toolModeRef.current === "select") latest.current.selectTree(tree);
     });
     map.on("mouseenter", "treeline-tree-circle", () => {
       if (toolModeRef.current === "select") map.getCanvas().style.cursor = "pointer";
@@ -429,18 +481,20 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
       map.getCanvas().style.cursor = toolModeRef.current === "select" ? "" : "crosshair";
     });
     map.on("click", e => {
+      setOpenPanel(null);
+      if (!styleReady.current) return;
       if (toolModeRef.current === "route") {
         const next = [...routeDraftRef.current, [Number(e.lngLat.lng.toFixed(6)), Number(e.lngLat.lat.toFixed(6))]];
         routeDraftRef.current = next;
         setRouteDraft(next);
-        localStorage.setItem(routeStorageKeyRef.current, JSON.stringify(next));
-        setPlaceStatus(`Routenpunkt ${next.length} gesetzt.`);
+        if (latest.current.persistRouteDraft(next)) setPlaceStatus(`Routenpunkt ${next.length} gesetzt.`);
         return;
       }
       if (!addModeRef.current) return;
       const features = map.queryRenderedFeatures(e.point, { layers:["treeline-tree-circle"] });
       if (features.length) return;
       setClickCoords({ lat:e.lngLat.lat, lng:e.lngLat.lng });
+      setSelectedTree(null);
       const activeOrder = selectedOrderRef.current;
       setNewTreeData(prev => ({
         ...prev,
@@ -478,8 +532,8 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
 
   function apply3DMode() {
     const map = mapboxMap.current;
-    if (!map || !map.isStyleLoaded()) return;
-    if (!map.getSource("treeline-dem")) {
+    if (!map || !styleReady.current) return;
+    if (threeDEnabled && !map.getSource("treeline-dem")) {
       map.addSource("treeline-dem", {
         type:"raster-dem",
         url:"mapbox://mapbox.mapbox-terrain-dem-v1",
@@ -495,6 +549,8 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     } else {
       map.setTerrain(null);
       map.setFog(null);
+      map.setPitch(0);
+      map.setBearing(0);
     }
     if (map.getLayer("treeline-3d-buildings")) {
       map.setPaintProperty("treeline-3d-buildings", "fill-extrusion-opacity", threeDEnabled ? 0.42 : 0);
@@ -503,17 +559,21 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
 
   function fitOrderBounds(order = selectedOrder, coordsOverride = null) {
     const map = mapboxMap.current;
-    const coords = coordsOverride || (order?.id === selectedOrder?.id ? planningRoute : getOrderPlanningCoordinates(order));
+    const route = order?.id === selectedOrder?.id ? planningRoute : getOrderPlanningCoordinates(order);
+    const coords = coordsOverride || (route.length ? route : getOrderCoordinates(null, order));
     if (!map || !coords.length) return;
     const bounds = coords.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coords[0], coords[0]));
-    map.fitBounds(bounds, { padding:80, maxZoom:17.4, duration:700 });
+    const narrow = map.getContainer().clientWidth < 500;
+    map.fitBounds(bounds, { padding:narrow ? 55 : 80, maxZoom:17.4, duration:700 });
   }
 
   async function focusOrder(order = selectedOrder, options = {}) {
     if (!order) return;
     const map = mapboxMap.current;
     if (!map) return;
-    const coords = order.id === selectedOrder?.id ? planningRoute : getOrderPlanningCoordinates(order);
+    const request = ++focusRequest.current;
+    const route = order.id === selectedOrder?.id ? planningRoute : getOrderPlanningCoordinates(order);
+    const coords = route.length ? route : getOrderCoordinates(null, order);
     if (coords.length) {
       fitOrderBounds(order, coords);
       if (!options.silent) setPlaceStatus(`${order.id} fokussiert.`);
@@ -532,33 +592,52 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
       const res = await fetch(url, { headers:{ Accept:"application/json" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (request !== focusRequest.current || map !== mapboxMap.current) return;
       const feature = data.features?.[0];
       if (!feature) {
         if (!options.silent) setPlaceStatus("Auftragsadresse nicht gefunden.");
         return;
       }
-      map.flyTo({ center:feature.center, zoom:16.5, pitch:threeDEnabled ? 58 : 42, duration:800 });
+      map.flyTo({ center:feature.center, zoom:16.5, duration:800 });
       if (!options.silent) setPlaceStatus(`${order.id} fokussiert.`);
     } catch (err) {
-      console.warn("Mapbox order focus failed.", err);
+      if (request !== focusRequest.current || map !== mapboxMap.current) return;
       if (!options.silent) setPlaceStatus("Auftragsadresse konnte nicht fokussiert werden.");
     }
   }
 
   function selectTree(tree) {
     setSelectedTree(tree);
-    showTreePopup(tree);
+    setFilter("all");
+    setOrderOnly(false);
+    setOpenPanel(null);
+    setShowAddForm(false);
+    setToolMode("select");
     mapboxMap.current?.flyTo({ center:[tree.lng, tree.lat], zoom:18, duration:650 });
   }
 
-  function showTreePopup(tree) {
-    const map = mapboxMap.current;
-    if (!map || !window.mapboxgl) return;
-    popupRef.current?.remove();
-    popupRef.current = new mapboxgl.Popup({ closeButton:false, closeOnClick:false, offset:18 })
-      .setLngLat([tree.lng, tree.lat])
-      .setHTML(`<strong>${tree.name}</strong><br>${tree.id}<br>${tree.standort || ""}`)
-      .addTo(map);
+  function chooseTool(mode) {
+    setToolMode(mode);
+    toolModeRef.current = mode;
+    setOpenPanel(null);
+    setSelectedTree(null);
+    setShowAddForm(false);
+    setClickCoords(null);
+    setNewTreeData(emptyTreeData);
+    shellRef.current?.querySelector('[data-panel="tools"]')?.focus();
+    if (mode === "route") mapboxMap.current?.doubleClickZoom.disable();
+    else mapboxMap.current?.doubleClickZoom.enable();
+  }
+
+  function persistRouteDraft(next) {
+    try {
+      if (next.length) localStorage.setItem(routeStorageKeyRef.current, JSON.stringify(next));
+      else localStorage.removeItem(routeStorageKeyRef.current);
+      return true;
+    } catch (error) {
+      setPlaceStatus("Routenentwurf konnte nicht lokal gesichert werden.");
+      return false;
+    }
   }
 
   async function handlePlaceSearch(e) {
@@ -581,8 +660,9 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
       return haystack.includes(q.toLowerCase());
     });
     if (localOrder) {
+      setOpenPanel(null);
       onSelectOrder?.(localOrder.id);
-      await focusOrder(localOrder);
+      if (localOrder.id === selectedOrder?.id) await focusOrder(localOrder);
       return;
     }
 
@@ -592,27 +672,33 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     }
 
     setPlaceStatus("Suche läuft...");
+    const request = ++focusRequest.current;
     try {
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?country=de&limit=1&language=de&access_token=${encodeURIComponent(mapboxToken)}`;
       const res = await fetch(url, { headers:{ Accept:"application/json" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (request !== focusRequest.current || !mapboxMap.current) return;
       const feature = data.features?.[0];
       if (!feature) {
         setPlaceStatus("Kein Ort gefunden.");
         return;
       }
       mapboxMap.current?.flyTo({ center:feature.center, zoom:17, duration:800 });
+      setOpenPanel(null);
       setPlaceStatus("Ort gefunden.");
     } catch (err) {
-      console.warn("Mapbox search failed.", err);
+      if (request !== focusRequest.current || !mapboxMap.current) return;
       setPlaceStatus("Suche fehlgeschlagen.");
     }
   }
 
   async function confirmAddTree() {
     if (!clickCoords || !newTreeData.name.trim()) return;
-    const newId = `TRE-${new Date().getFullYear()}-${String(trees.length + 1).padStart(3, "0")}`;
+    const prefix = `TRE-${new Date().getFullYear()}-`;
+    let index = trees.length + 1;
+    while (trees.some(tree => tree.id === prefix + String(index).padStart(3, "0"))) index += 1;
+    const newId = prefix + String(index).padStart(3, "0");
     const tree = {
       ...newTreeData,
       id:newId,
@@ -637,7 +723,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     MOCK_DATA.trees.push(tree);
     if (tree.orderId) {
       const order = orders.find(o => o.id === tree.orderId);
-      if (order && !order.treeIds.includes(tree.id)) order.treeIds.push(tree.id);
+      if (order) order.treeIds = [...new Set([...(order.treeIds || []), tree.id])];
       if (order) window.TREELINE_DB?.saveOrder?.(order).catch(err => console.warn("Appwrite order update failed; tree assignment is stored locally.", err));
     }
     window.TREELINE_DB?.save();
@@ -670,15 +756,13 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     const next = routeDraft.slice(0, -1);
     routeDraftRef.current = next;
     setRouteDraft(next);
-    localStorage.setItem(routeStorageKey, JSON.stringify(next));
-    setPlaceStatus(next.length ? `Routenpunkt entfernt. ${next.length} Punkte bleiben.` : "Route geleert.");
+    if (persistRouteDraft(next)) setPlaceStatus(next.length ? `Routenpunkt entfernt. ${next.length} Punkte bleiben.` : "Route geleert.");
   }
 
   function clearRouteDraft() {
     routeDraftRef.current = [];
     setRouteDraft([]);
-    localStorage.removeItem(routeStorageKey);
-    setPlaceStatus("Gezeichnete Route gelöscht. Auftragsroute wird wieder angezeigt.");
+    if (persistRouteDraft([])) setPlaceStatus("Gezeichnete Route gelöscht. Auftragsroute wird wieder angezeigt.");
   }
 
   function saveRouteDraft() {
@@ -705,8 +789,11 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     window.TREELINE_APPWRITE?.saveRoute?.(route).catch(err => {
       console.warn("Appwrite route save failed; route is stored locally.", err);
     });
-    setRouteSavedAt(new Date().toLocaleTimeString("de-DE", { hour:"2-digit", minute:"2-digit" }));
     setPlaceStatus(`Route mit ${routeDraft.length} Punkten gespeichert.`);
+    routeDraftRef.current = [];
+    setRouteDraft([]);
+    persistRouteDraft([]);
+    chooseTool("select");
   }
 
   function applySpeciesName(value) {
@@ -718,102 +805,84 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
     }));
   }
 
+  latest.current = { addMapSourcesAndLayers, apply3DMode, updateMapData, attachMapListeners, focusOrder, selectTree, persistRouteDraft };
+
   return (
-    <div className="map-shell" style={{display:"flex",height:"100vh",flexDirection:"column"}}>
-      <div className="map-toolbar" style={mvStyles.toolbar}>
-        <span style={mvStyles.toolbarTitle}>Karte</span>
-        <select style={mvStyles.orderSelect} value={selectedOrder?.id || ""}
+    <section ref={shellRef} className={`map-workspace${expanded ? " map-expanded" : ""}`} aria-label="Kartenarbeitsplatz">
+      <header className="map-order-bar">
+        <DispatchIcon name="ClipboardList"/>
+        <select value={selectedOrder?.id || ""} title={selectedOrder?.title || "Auftrag auswählen"}
           aria-label="Auftrag auf Karte auswählen"
           onChange={e => onSelectOrder?.(e.target.value)}>
+          {!orders.length && <option value="">Keine Aufträge</option>}
           {orders.map(order => <option key={order.id} value={order.id}>{order.id} · {order.title}</option>)}
         </select>
-        <form className="map-place-search" style={mvStyles.placeSearch} onSubmit={handlePlaceSearch}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#777" strokeWidth="2.5">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input style={mvStyles.placeInput} value={placeQuery}
-            onChange={e => setPlaceQuery(e.target.value)}
-            placeholder="Baum, Auftrag, Stadt oder Adresse suchen"
-            aria-label="Baum, Auftrag, Stadt oder Adresse suchen" />
-          <button type="submit" style={mvStyles.placeBtn}>Suchen</button>
-          {placeStatus && <span className="map-place-status" style={mvStyles.placeStatus}>{placeStatus}</span>}
-        </form>
-        <div className="map-filters" style={mvStyles.filters}>
-          {statusOpts.map(([val,label]) => (
-            <button key={val} onClick={() => setFilter(val)}
-              style={{...mvStyles.filterBtn,...(filter===val?mvStyles.filterBtnActive:{})}}>
-              {val !== "all" && <span style={{...mvStyles.filterDot,background:statusColors[val]}}/>}
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="map-view-actions" style={mvStyles.viewActions}>
-          <div className="map-style-switch" style={mvStyles.styleSwitch}>
-            {styleOpts.map(([style,label]) => (
-              <button key={style} onClick={() => setMapStyle(style)}
-                style={{...mvStyles.styleBtn,...(mapStyle===style?mvStyles.styleBtnActive:{})}}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <button className="map-mode-btn" style={mvStyles.orderBtn} onClick={()=>setThreeDEnabled(v => !v)}>{threeDEnabled ? "2D" : "3D"}</button>
-          <button className="map-focus-btn" style={mvStyles.orderBtn} onClick={()=>focusOrder(selectedOrder)} aria-label="Auftrag fokussieren">
-            <span className="desktop-label">Auftrag fokussieren</span>
-            <span className="mobile-label">Fokus</span>
-          </button>
-        </div>
-      </div>
+        <MapIconButton icon="LocateFixed" label="Auftrag fokussieren" disabled={!mapReady || !selectedOrder} onClick={() => focusOrder(selectedOrder)}/>
+        <MapIconButton icon={expanded ? "Minimize" : "Maximize"} label={expanded ? "Kartenansicht verkleinern" : "Kartenansicht vergrößern"} aria-pressed={expanded} onClick={() => setExpanded(value => !value)}/>
+      </header>
 
-      <div className="map-body" style={{display:"flex",flex:1,overflow:"hidden"}}>
-        <div className="map-canvas" ref={mapRef} style={{flex:1,background:"#eef1ef",position:"relative"}}>
-          {!mapboxToken && <div style={mvStyles.mapFallback}>Mapbox Token fehlt.</div>}
-          <div className={`map-tool-panel ${toolsOpen ? "map-tool-panel-open" : "map-tool-panel-collapsed"}`} style={mvStyles.toolPanel}>
-            <button type="button" className="map-tool-toggle" style={mvStyles.toolToggle}
-              onClick={() => setToolsOpen(v => !v)}
-              aria-label={toolsOpen ? "Werkzeug schließen" : "Werkzeug öffnen"}>
-              <span style={mvStyles.toolTitle}>Werkzeug</span>
-              <span style={mvStyles.toolState}>{activeToolLabel}</span>
-              <span style={mvStyles.toolChevron}>{toolsOpen ? "-" : "+"}</span>
-            </button>
-            <div className="map-tool-body">
-              <div style={mvStyles.toolModes}>
-              {[["select","Auswählen"],["tree","Baum setzen"],["route","Route zeichnen"]].map(([mode,label]) => (
-                <button key={mode} onClick={()=>{ setToolMode(mode); if (mode !== "tree") setShowAddForm(false); }}
-                  style={{...mvStyles.toolBtn,...(toolMode===mode?mvStyles.toolBtnActive:{})}}>
-                  {label}
-                </button>
-              ))}
-              </div>
-              <div style={mvStyles.toolHint}>
-                {toolMode === "select" && "Bäume antippen, Profile öffnen und Auftrag fokussieren."}
-                {toolMode === "tree" && "Auf die Karte klicken, um einen Baum mit Auftragsdaten anzulegen."}
-                {toolMode === "route" && "Nacheinander Punkte klicken, um eine Arbeitsroute zu markieren."}
-              </div>
-              <div style={mvStyles.routeTools}>
-                <button style={mvStyles.routeBtn} onClick={undoRoutePoint} disabled={!routeDraft.length}>Undo</button>
-                <button style={mvStyles.routeBtn} onClick={clearRouteDraft} disabled={!routeDraft.length}>Löschen</button>
-                <button style={mvStyles.routePrimaryBtn} onClick={saveRouteDraft} disabled={routeDraft.length < 2}>Route speichern</button>
-              </div>
-              <div style={mvStyles.routeMeta}>
-                {routeDraft.length ? `${routeDraft.length} gezeichnete Punkte` : `${planningRoute.length} Auftragsroutenpunkte`}
-                {routeSavedAt ? ` · gespeichert ${routeSavedAt}` : ""}
-              </div>
+      <div className="map-work-area">
+        <div className="map-stage">
+          <div className="map-surface" ref={mapRef}/>
+          <nav className="map-rail" aria-label="Kartenaktionen">
+            {[["search", "Search", "Suche"], ["layers", "Layers", "Kartenansicht"], ["tools", "Pencil", "Werkzeug"]].map(([panel, icon, label]) =>
+              <MapIconButton key={panel} icon={icon} label={`${label} ${openPanel === panel ? "schließen" : "öffnen"}`}
+                data-panel={panel} aria-controls="map-options" aria-expanded={openPanel === panel}
+                className={openPanel === panel ? "is-active" : ""}
+                onClick={() => setOpenPanel(value => value === panel ? null : panel)}/>
+            )}
+          </nav>
+          {openPanel && <div id="map-options" className="map-options" role="region" aria-label={{search:"Kartensuche",layers:"Kartenansicht",tools:"Werkzeug"}[openPanel]}>
+            <div className="map-options-heading">
+              <h2>{{search:"Suchen",layers:"Kartenansicht",tools:"Werkzeug"}[openPanel]}</h2>
+              <MapIconButton icon="X" label="Menü schließen" onClick={() => { const panel = openPanel; setOpenPanel(null); shellRef.current?.querySelector(`[data-panel="${panel}"]`)?.focus(); }}/>
             </div>
-          </div>
+            {openPanel === "search" && <form className="map-search-form" onSubmit={handlePlaceSearch}>
+              <label htmlFor="map-search">Baum, Auftrag oder Adresse</label>
+              <div><input id="map-search" autoFocus value={placeQuery} onChange={e => setPlaceQuery(e.target.value)} placeholder="Name, Nummer oder Ort"/>
+                <MapIconButton icon="Search" label="Suchen" type="submit" disabled={!placeQuery.trim()}/></div>
+            </form>}
+            {openPanel === "layers" && <div className="map-layer-options">
+              <fieldset><legend>Kartenstil</legend><div className="map-style-options">
+                {styleOpts.map(([style, label]) => <label key={style}><input type="radio" name="map-style" checked={mapStyle === style} onChange={() => setMapStyle(style)}/>{label}</label>)}
+              </div></fieldset>
+              <label className="map-check"><input type="checkbox" checked={threeDEnabled} onChange={e => setThreeDEnabled(e.target.checked)}/>3D-Ansicht</label>
+              <label className="map-check"><input type="checkbox" checked={orderOnly} onChange={e => setOrderOnly(e.target.checked)} disabled={!selectedOrder}/>Nur Bäume dieses Auftrags</label>
+              <label className="map-filter-label">Baumzustand<select aria-label="Baumzustand" value={filter} onChange={e => setFilter(e.target.value)}>{statusOpts.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+            </div>}
+            {openPanel === "tools" && <div className="map-tool-options">
+              {[["select","MousePointer2","Auswählen"],["tree","TreePine","Baum setzen"],["route","Route","Route zeichnen"]].map(([mode, icon, label]) =>
+                <button key={mode} type="button" aria-pressed={toolMode === mode} disabled={!mapReady} onClick={() => chooseTool(mode)}><DispatchIcon name={icon}/>{label}{toolMode === mode && <DispatchIcon name="Check" size={16}/>}</button>
+              )}
+            </div>}
+          </div>}
+          {mapError ? <div className="map-notice map-error" role="alert"><span>{mapError}</span><MapIconButton icon="RotateCw" label="Karte erneut laden" onClick={() => setMapAttempt(value => value + 1)}/></div>
+            : !mapReady ? <div className="map-notice" role="status">Karte wird geladen…</div>
+            : placeStatus ? <div className="map-notice" role="status">{placeStatus}</div> : null}
+          {toolMode !== "select" && !showAddForm && <div className="map-edit-bar" role="toolbar" aria-label="Kartenbearbeitung">
+            <div className="map-edit-state"><DispatchIcon name={toolMode === "tree" ? "TreePine" : "Route"}/><span>{toolMode === "route" ? `${routeDraft.length} ${routeDraft.length === 1 ? "Punkt" : "Punkte"}` : activeToolLabel}</span></div>
+            {toolMode === "route" && <>
+              <MapIconButton icon="Undo2" label="Letzten Routenpunkt zurücknehmen" onClick={undoRoutePoint} disabled={!routeDraft.length}/>
+              <MapIconButton icon="Trash2" label="Routenentwurf verwerfen" onClick={clearRouteDraft} disabled={!routeDraft.length}/>
+              <MapIconButton icon="Save" label="Route speichern" className="map-save" onClick={saveRouteDraft} disabled={routeDraft.length < 2 || !selectedOrder}/>
+            </>}
+            <MapIconButton icon="X" label="Bearbeitung beenden" onClick={() => chooseTool("select")}/>
+          </div>}
+          {(filter !== "all" || orderOnly) && <button className="map-filter-reset" onClick={() => { setFilter("all"); setOrderOnly(false); }} title="Filter zurücksetzen" aria-label="Kartenfilter zurücksetzen"><DispatchIcon name="X" size={14}/>{treeFeatures().features.length} Bäume · {filter === "all" ? "Auftrag" : statusLabel[filter]}</button>}
         </div>
 
         {showAddForm && (
-          <div className="map-side-panel" style={mvStyles.addPanel}>
-            <div style={mvStyles.addPanelTitle}>Neuer Baum</div>
+          <div className="map-detail-pane map-add-pane" style={mvStyles.addPanel} role="region" aria-label="Neuer Baum">
+            <div className="map-detail-heading"><h2 style={mvStyles.addPanelTitle}>Neuer Baum</h2><MapIconButton icon="X" label="Baumerfassung abbrechen" onClick={cancelAdd}/></div>
             <div style={mvStyles.addCoords}>{clickCoords?.lat.toFixed(5)}, {clickCoords?.lng.toFixed(5)}</div>
             <div style={mvStyles.fLabel}>Bezeichnung</div>
-            <input style={mvStyles.fInput} placeholder="z.B. Stieleiche" value={newTreeData.name}
+            <input autoFocus aria-label="Bezeichnung" style={mvStyles.fInput} placeholder="z.B. Stieleiche" value={newTreeData.name}
               list="treeline-map-species" onChange={e=>applySpeciesName(e.target.value)} />
             <datalist id="treeline-map-species">
               {(window.TREELINE_TREE_SPECIES || []).map(item => <option key={item.name} value={item.name} />)}
             </datalist>
             <div style={mvStyles.fLabel}>Art (lateinisch)</div>
-            <input style={mvStyles.fInput} placeholder="z.B. Quercus robur" value={newTreeData.species}
+            <input aria-label="Art (lateinisch)" style={mvStyles.fInput} placeholder="z.B. Quercus robur" value={newTreeData.species}
               onChange={e=>setNewTreeData({...newTreeData,species:e.target.value})} />
             <div style={mvStyles.fLabel}>Standortbeschreibung</div>
             <input style={mvStyles.fInput} value={newTreeData.standort}
@@ -876,14 +945,14 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
         )}
 
         {selectedTree && !showAddForm && (
-          <div className="map-side-panel" style={mvStyles.panel}>
+          <div className="map-detail-pane" style={mvStyles.panel} role="region" aria-label="Baumdetails">
             <div style={mvStyles.panelHeader}>
               <div>
                 <div style={mvStyles.panelId}>{selectedTree.id}</div>
                 <div style={mvStyles.panelName}>{selectedTree.name}</div>
                 <div style={mvStyles.panelSpecies}>{selectedTree.species}</div>
               </div>
-              <button style={mvStyles.closeBtn} onClick={() => { setSelectedTree(null); popupRef.current?.remove(); }}>×</button>
+              <MapIconButton icon="X" label="Baumdetails schließen" onClick={() => setSelectedTree(null)}/>
             </div>
             <div style={{...mvStyles.statusBadge, background:statusColors[selectedTree.status]+"20", color:statusColors[selectedTree.status]}}>
               {statusLabel[selectedTree.status]}
@@ -891,6 +960,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
             {selectedTree.orderId && <div style={mvStyles.orderChip}>{selectedTree.orderId} · {selectedTree.routeSide} #{selectedTree.routeIndex}</div>}
             <div style={mvStyles.section}>Standort</div>
             <div style={mvStyles.detail}>{selectedTree.standort}</div>
+            <details className="map-tree-details"><summary>Baumdaten</summary>
             <div style={mvStyles.grid2}>
               {[["Höhe",selectedTree.height+" m"],["Stamm-Ø",selectedTree.trunkDiam+" cm"],
                 ["Kronen-Ø",selectedTree.crownDiam+" m"],["Alter",selectedTree.age+" J."]].map(([k,v])=>(
@@ -913,66 +983,28 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
               <div style={mvStyles.section}>Notizen</div>
               <div style={mvStyles.notes}>{selectedTree.notes}</div>
             </>}
+            </details>
             <button style={mvStyles.detailBtn} onClick={()=>onSelectTree(selectedTree.id)}>
-              Vollständiges Profil →
+              Vollständiges Profil <DispatchIcon name="ArrowRight" size={16}/>
             </button>
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
+function MapIconButton({ icon, label, className = "", type = "button", ...props }) {
+  return <button type={type} className={`map-icon ${className}`} aria-label={label} title={label} {...props}><DispatchIcon name={icon}/></button>;
+}
+
+function validMapCoordinates(value) {
+  return Array.isArray(value) ? value.filter(coord => Array.isArray(coord) && coord.length === 2
+    && Number.isFinite(coord[0]) && Math.abs(coord[0]) <= 180
+    && Number.isFinite(coord[1]) && Math.abs(coord[1]) <= 90) : [];
+}
+
 const mvStyles = {
-  toolbar:        {display:"flex",alignItems:"center",gap:10,padding:"10px 16px",
-                   background:"#fff",borderBottom:"1px solid #e5e5e0",flexWrap:"wrap"},
-  toolbarTitle:   {fontSize:15,fontWeight:700,color:"#1a1a18",marginRight:4},
-  orderSelect:    {minWidth:260,flex:"0 1 360px",padding:"7px 10px",border:"1px solid #e0e0dc",
-                   borderRadius:8,background:"#fff",fontSize:12,fontWeight:700,color:"#333",outline:"none"},
-  placeSearch:    {display:"flex",alignItems:"center",gap:8,background:"#f5f5f3",
-                   border:"1px solid #e2e2dc",borderRadius:8,padding:"5px 7px 5px 10px",
-                   minWidth:320,flex:"1 1 340px"},
-  placeInput:     {border:"none",background:"transparent",outline:"none",fontSize:12,
-                   color:"#333",minWidth:180,flex:1},
-  placeBtn:       {padding:"5px 10px",border:"none",borderRadius:6,background:"#1565A0",
-                   color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"},
-  placeStatus:    {fontSize:11,color:"#777",whiteSpace:"nowrap"},
-  filters:        {display:"flex",gap:6,flex:"1 1 300px",flexWrap:"wrap"},
-  filterBtn:      {padding:"5px 10px",borderRadius:100,border:"1px solid #e0e0dc",background:"#fff",
-                   fontSize:12,fontWeight:500,cursor:"pointer",color:"#555",
-                   display:"flex",alignItems:"center",gap:5},
-  filterBtnActive:{background:"#EDF7F1",borderColor:"#1D7A56",color:"#1D7A56",fontWeight:700},
-  filterDot:      {width:8,height:8,borderRadius:"50%",flexShrink:0},
-  viewActions:    {display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"},
-  styleSwitch:    {display:"flex",gap:4,background:"#f5f5f3",borderRadius:8,padding:3},
-  styleBtn:       {padding:"5px 8px",border:"none",borderRadius:6,background:"transparent",
-                   fontSize:11,fontWeight:700,cursor:"pointer",color:"#666"},
-  styleBtnActive: {background:"#fff",color:"#1565A0",boxShadow:"0 1px 2px rgba(0,0,0,0.08)"},
-  addModeBtn:     {padding:"7px 12px",border:"1px solid #e0e0dc",borderRadius:8,background:"#fff",
-                   fontSize:12,fontWeight:700,cursor:"pointer",color:"#1D7A56"},
-  addModeBtnActive:{background:"#FFEBEE",borderColor:"#B71C1C",color:"#B71C1C"},
-  orderBtn:       {padding:"7px 12px",border:"none",borderRadius:8,background:"#EDF7F1",
-                   color:"#1D7A56",fontSize:12,fontWeight:700,cursor:"pointer"},
-  mapFallback:    {position:"absolute",inset:0,display:"flex",alignItems:"center",
-                   justifyContent:"center",fontSize:14,color:"#777"},
-  toolPanel:      {position:"absolute",left:14,top:14,width:280,background:"rgba(255,255,255,0.96)",
-                   border:"1px solid #e5e5e0",borderRadius:8,padding:"12px",boxShadow:"0 10px 28px rgba(0,0,0,0.14)",
-                   zIndex:5,backdropFilter:"blur(6px)"},
-  toolToggle:     {width:"100%",border:"none",background:"transparent",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:0,cursor:"pointer",textAlign:"left"},
-  toolTitle:      {fontSize:12,fontWeight:800,color:"#1a1a18"},
-  toolState:      {fontSize:11,fontWeight:800,color:"#1D7A56",background:"#EDF7F1",borderRadius:100,padding:"3px 8px",marginLeft:"auto"},
-  toolChevron:    {width:22,height:22,borderRadius:6,background:"#f5f5f3",color:"#555",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,flexShrink:0},
-  toolModes:      {display:"grid",gridTemplateColumns:"1fr",gap:6},
-  toolBtn:        {padding:"8px 10px",border:"1px solid #e0e0dc",borderRadius:7,background:"#fff",
-                   color:"#444",fontSize:12,fontWeight:700,cursor:"pointer",textAlign:"left"},
-  toolBtnActive:  {background:"#1D7A56",borderColor:"#1D7A56",color:"#fff"},
-  toolHint:       {fontSize:11,color:"#777",lineHeight:1.45,marginTop:9,minHeight:32},
-  routeTools:     {display:"grid",gridTemplateColumns:"0.7fr 0.9fr 1.4fr",gap:6,marginTop:10},
-  routeBtn:       {padding:"7px 8px",border:"1px solid #e0e0dc",borderRadius:7,background:"#fff",
-                   color:"#555",fontSize:11,fontWeight:700,cursor:"pointer"},
-  routePrimaryBtn:{padding:"7px 8px",border:"none",borderRadius:7,background:"#111827",
-                   color:"#fff",fontSize:11,fontWeight:800,cursor:"pointer"},
-  routeMeta:      {fontSize:10,color:"#888",marginTop:8},
   panel:          {width:300,background:"#fff",borderLeft:"1px solid #e5e5e0",
                    overflowY:"auto",padding:"18px 16px",display:"flex",flexDirection:"column",gap:0},
   addPanel:       {width:300,background:"#fff",borderLeft:"1px solid #e5e5e0",
@@ -989,13 +1021,13 @@ const mvStyles = {
   confirmBtn:     {flex:2,padding:"9px",background:"#1D7A56",color:"#fff",border:"none",
                    borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer"},
   panelHeader:    {display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10},
-  panelId:        {fontSize:11,color:"#aaa",letterSpacing:"0.3px",fontWeight:600},
-  panelName:      {fontSize:17,fontWeight:700,color:"#1a1a18",letterSpacing:"-0.2px"},
+  panelId:        {fontSize:11,color:"#aaa",fontWeight:600},
+  panelName:      {fontSize:17,fontWeight:700,color:"#1a1a18"},
   panelSpecies:   {fontSize:12,color:"#888",fontStyle:"italic",marginTop:2},
   closeBtn:       {background:"none",border:"none",cursor:"pointer",color:"#aaa",fontSize:18,padding:4},
   statusBadge:    {display:"inline-block",padding:"4px 12px",borderRadius:100,fontSize:12,fontWeight:700,marginBottom:8},
   orderChip:      {fontSize:11,fontWeight:700,color:"#1565A0",background:"#EEF4FB",padding:"5px 9px",borderRadius:7,marginBottom:8},
-  section:        {fontSize:10,fontWeight:700,color:"#aaa",letterSpacing:"0.8px",
+  section:        {fontSize:10,fontWeight:700,color:"#aaa",
                    textTransform:"uppercase",marginTop:14,marginBottom:5},
   detail:         {fontSize:13,color:"#444"},
   grid2:          {display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4},

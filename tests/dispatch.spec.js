@@ -3,7 +3,7 @@ const { test, expect } = require("@playwright/test");
 test.beforeEach(async ({ context, page }) => {
   await context.route("https://fra.cloud.appwrite.io/**", route => route.abort());
   await page.goto("/treeline.html");
-  await page.getByRole("button", { name: /Als Markus anmelden/ }).click();
+  await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
   await expect(page.getByLabel("Demo-Profil wechseln")).toBeVisible();
 });
 
@@ -61,7 +61,7 @@ test("office draft -> publication -> personal inbox -> read -> updated and cance
   await page.getByLabel("Demo-Profil wechseln").selectOption("user-001");
   await navigate(page, "Einsatzplanung");
   await page.getByRole("button", { name: /Einsatz bearbeiten:/ }).click();
-  await page.getByRole("checkbox", { name: "Kevin Stumpe", exact: true }).uncheck();
+  await page.getByRole("checkbox", { name: "Kira Saal", exact: true }).uncheck();
   await page.getByRole("button", { name: "Entwurf speichern" }).click();
   await publish(page, true);
   await page.getByLabel("Demo-Profil wechseln").selectOption("user-007");
@@ -79,6 +79,120 @@ test("resource conflicts leave the saved draft intact", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("zeitgleich");
   await page.getByRole("button", { name: "Dialog schließen" }).click();
   await expect(page.getByTestId("dispatch-row")).toHaveCount(1);
+});
+
+test("demo orders prefill demo staff and all pickers preserve selection during search", async ({ page }) => {
+  await navigate(page, "Einsatzplanung");
+  await page.getByRole("button", { name: "Neuer Einsatz" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Aufträge suchen", { exact: true }).fill("lichtung");
+  await expect(dialog.getByLabel("Auftrag", { exact: true }).locator("option")).toHaveCount(2);
+  await dialog.getByLabel("Auftrag", { exact: true }).selectOption("PLAN-DEMO-04");
+  await expect(dialog.getByLabel("Baustelle", { exact: true })).toHaveValue("Lichtung Nord");
+  await expect(dialog.getByRole("checkbox", { name: "Jonna", exact: true })).toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "Silas", exact: true })).toBeChecked();
+  await dialog.getByLabel("Mitarbeiter suchen", { exact: true }).fill("ma");
+  await dialog.getByRole("checkbox", { name: "Malin", exact: true }).check();
+  await dialog.getByLabel("Mitarbeiter suchen", { exact: true }).fill("ari");
+  await dialog.getByRole("checkbox", { name: "Ari", exact: true }).check();
+  await expect(dialog.getByLabel("Mitarbeiter: Auswahl", { exact: true })).toContainText("Jonna");
+  await expect(dialog.getByLabel("Mitarbeiter: Auswahl", { exact: true })).toContainText("Malin");
+  await dialog.getByLabel("Fahrzeuge suchen", { exact: true }).fill("42");
+  await dialog.getByRole("checkbox", { name: "VW TGE 3", exact: true }).check();
+  await dialog.getByLabel("Fahrzeuge suchen", { exact: true }).fill("keine treffer");
+  await expect(dialog.getByLabel("Fahrzeuge: Auswahl", { exact: true })).toContainText("VW TGE 3");
+  await dialog.getByLabel("Geräte / Anhänger suchen", { exact: true }).fill("kippanhanger");
+  await dialog.getByRole("checkbox", { name: "Kippanhänger", exact: true }).check();
+  await dialog.getByRole("button", { name: "Entwurf speichern" }).click();
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  const row = page.getByTestId("dispatch-row");
+  for (const text of ["Lichtung Nord", "Jonna", "Silas", "Malin", "Ari", "VW TGE 3", "Kippanhänger"]) await expect(row).toContainText(text);
+  await publish(page);
+  await page.getByLabel("Demo-Profil wechseln").selectOption("staff-demo-3");
+  await expect(page.getByRole("heading", { name: "Mein Postfach" })).toBeVisible();
+  await expect(page.getByTestId("dispatch-row")).toContainText("Lichtung Nord");
+});
+
+test("changing orders requires a decision and can preserve custom entries", async ({ page }) => {
+  await addSample(page);
+  await page.getByRole("button", { name: /Einsatz bearbeiten:/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Baustelle", { exact: true }).fill("Eigene Einteilung");
+  await dialog.getByLabel("Auftrag", { exact: true }).selectOption("PLAN-DEMO-01");
+  await expect(dialog.getByRole("button", { name: "Entwurf speichern" })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Wechsel abbrechen" }).click();
+  await expect(dialog.getByLabel("Auftrag", { exact: true })).toHaveValue("AUF-2026-001");
+  await dialog.getByLabel("Auftrag", { exact: true }).selectOption("PLAN-DEMO-01");
+  await dialog.getByRole("button", { name: "Nur verknüpfen" }).click();
+  await expect(dialog.getByLabel("Baustelle", { exact: true })).toHaveValue("Eigene Einteilung");
+  await expect(dialog.getByRole("checkbox", { name: "Kira Saal", exact: true })).toBeChecked();
+  await dialog.getByLabel("Auftrag", { exact: true }).selectOption("PLAN-DEMO-04");
+  await dialog.getByRole("button", { name: "Vorgaben übernehmen" }).click();
+  await expect(dialog.getByLabel("Baustelle", { exact: true })).toHaveValue("Lichtung Nord");
+  await expect(dialog.getByRole("checkbox", { name: "Kira Saal", exact: true })).not.toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "Jonna", exact: true })).toBeChecked();
+  await dialog.getByRole("button", { name: "Entwurf speichern" }).click();
+  await expect(page.getByTestId("dispatch-row")).toContainText("Lichtung Nord");
+});
+
+test("bulk selection only affects filtered employees and never submits the form", async ({ page }) => {
+  await addSample(page);
+  await page.getByRole("button", { name: /Einsatz bearbeiten:/ }).click();
+  const dialog = page.getByRole("dialog");
+  const picker = dialog.getByRole("group", { name: /^Mitarbeiter / });
+  await dialog.getByLabel("Aufträge suchen", { exact: true }).press("Enter");
+  await expect(dialog).toBeVisible();
+  await picker.getByLabel("Mitarbeiter suchen", { exact: true }).fill("ma");
+  await picker.getByLabel("Mitarbeiter suchen", { exact: true }).press("Enter");
+  await expect(dialog).toBeVisible();
+  await picker.getByRole("checkbox", { name: "Alle Treffer auswählen" }).check();
+  await expect(picker.getByRole("checkbox", { name: "Malin", exact: true })).toBeChecked();
+  await expect(picker.getByRole("checkbox", { name: "Mats", exact: true })).toBeChecked();
+  await picker.getByRole("checkbox", { name: "Alle Treffer auswählen" }).uncheck();
+  await expect(picker.getByLabel("Mitarbeiter: Auswahl", { exact: true })).toContainText("Kira Saal");
+  await picker.getByLabel("Mitarbeiter suchen", { exact: true }).fill("");
+  await picker.getByRole("checkbox", { name: "Nur ausgewählte" }).check();
+  await expect(picker.getByLabel("Mitarbeiter: Treffer", { exact: true }).getByRole("checkbox")).toHaveCount(2);
+  await picker.getByRole("button", { name: "Kira Saal abwählen" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(picker.getByLabel("Mitarbeiter: Treffer", { exact: true }).getByRole("checkbox")).toHaveCount(1);
+  await dialog.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(page.getByTestId("dispatch-row")).toContainText("Kira Saal");
+});
+
+test("availability is shown before save and reacts to time changes", async ({ page }) => {
+  await addSample(page);
+  await page.getByRole("button", { name: "Neuer Einsatz" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Mitarbeiter suchen", { exact: true }).fill("kira");
+  await expect(dialog.locator(".dp-busy").first()).toContainText("Kronenpflege Musterstraße");
+  await dialog.getByLabel("Beginn", { exact: true }).fill("15:30");
+  await dialog.getByLabel("Ende", { exact: true }).fill("16:30");
+  await expect(dialog.locator(".dp-busy")).toHaveCount(0);
+});
+
+test("staff without email select their own profile, not another blank-email account", async ({ page }) => {
+  await page.getByTitle("Abmelden", { exact: true }).click();
+  for (const [id, name] of [["staff-demo-3", "Jonna"], ["staff-demo-8", "Ari"]]) {
+    await page.getByLabel("Beispielprofil", { exact: true }).selectOption(id);
+    await page.getByRole("button", { name: new RegExp(`Als ${name} anmelden`) }).click();
+    await expect(page.getByLabel("Demo-Profil wechseln")).toHaveValue(id);
+    await expect(page.getByText(`Für ${name} ist noch kein Tagesplan freigegeben.`)).toBeVisible();
+    await page.getByTitle("Abmelden", { exact: true }).click();
+  }
+});
+
+test("demo order details mark missing driving data and support three-person crews", async ({ page }) => {
+  await navigate(page, "Aufträge");
+  await page.getByRole("button", { name: /PLAN-DEMO-02/ }).click();
+  const details = page.locator(".orders-detail");
+  await expect(details.getByRole("heading", { name: "Pflege am Musterforum" })).toBeVisible();
+  await expect(details).toContainText("Führerschein: nicht erfasst");
+  await expect(details).toContainText("Daten fehlen");
+  await expect(details).not.toContainText("alle Fahrzeuge");
+  await expect(details).not.toContainText("NaN");
+  expect(await details.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
 });
 
 test("stale editors cannot overwrite a newer draft", async ({ page }) => {
@@ -147,6 +261,11 @@ for (const width of [320, 390, 768, 1440]) {
     await noOverflow();
     await page.screenshot({ path: testInfo.outputPath(`dispatch-${width}.png`), fullPage: true });
     await page.getByRole("button", { name: /Einsatz bearbeiten:/ }).click();
+    expect(await page.getByRole("dialog").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await page.getByLabel("Mitarbeiter suchen", { exact: true }).fill("Jonna");
+    await page.getByRole("checkbox", { name: "Jonna", exact: true }).check();
+    await expect(page.getByLabel("Mitarbeiter: Auswahl", { exact: true })).toContainText("Jonna");
+    await page.screenshot({ path: testInfo.outputPath(`picker-${width}.png`) });
     expect(await page.getByRole("dialog").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.getByRole("button", { name: "Dialog schließen" }).click();
     await publish(page);

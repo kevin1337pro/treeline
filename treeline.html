@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Treeline – Baumdienst Enbergs</title>
+  <meta name="theme-color" content="#54852F" />
+  <meta name="apple-mobile-web-app-title" content="Treeline" />
+  <link rel="icon" href="assets/brand/favicons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/favicons/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/favicons/apple-touch-icon.png" />
+  <link rel="manifest" href="site.webmanifest" />
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.24.0/mapbox-gl.css" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -109,92 +116,12 @@
       .orders-detail h1 {
         font-size: 22px !important;
       }
-      .map-shell {
-        height: calc(100vh - 52px) !important;
-        max-width: 100vw !important;
-        overflow: hidden !important;
-      }
-      .map-toolbar {
-        display: grid !important;
-        grid-template-columns: minmax(0, 1fr) !important;
-        gap: 8px !important;
-        padding: 8px !important;
-        max-height: none !important;
-        overflow: hidden !important;
-        align-items: stretch !important;
-      }
-      .map-toolbar select,
-      .map-toolbar form {
-        min-width: 0 !important;
-        width: 100% !important;
-        flex-basis: 100% !important;
-      }
-      .map-toolbar > span {
-        display: none !important;
-      }
-      .map-place-search {
-        display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr) auto !important;
-        align-items: center !important;
-      }
-      .map-place-search input {
-        min-width: 0 !important;
-      }
-      .map-place-status {
-        display: none !important;
-      }
-      .map-filters,
-      .map-view-actions {
-        width: 100% !important;
-        max-width: 100% !important;
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 2px !important;
-      }
-      .map-filters button,
-      .map-style-switch,
-      .map-mode-btn,
-      .map-focus-btn {
-        flex: 0 0 auto !important;
-      }
-      .map-body {
-        flex-direction: column !important;
-        min-height: 0 !important;
-      }
-      .map-canvas {
-        min-height: 0 !important;
-        height: 100% !important;
-        flex: 1 1 auto !important;
-      }
-      .map-tool-panel {
-        left: 8px !important;
-        right: 8px !important;
-        top: auto !important;
-        bottom: 10px !important;
-        width: auto !important;
-        max-width: none !important;
-        padding: 10px !important;
-        z-index: 10 !important;
-      }
-      .map-tool-panel-collapsed .map-tool-body {
-        display: none !important;
-      }
-      .map-tool-panel-open {
-        max-height: min(52vh, 360px) !important;
-        overflow-y: auto !important;
-      }
-      .map-side-panel {
-        width: 100% !important;
-        max-height: 38vh !important;
-        border-left: none !important;
-        border-top: 1px solid #e5e5e0 !important;
-      }
     }
   </style>
   <link rel="stylesheet" href="components/dispatch.css" />
+  <link rel="stylesheet" href="components/dashboard.css" />
+  <link rel="stylesheet" href="components/map.css" />
+  <link rel="stylesheet" href="components/brand.css" />
 </head>
 <body>
   <div id="root"></div>
@@ -217,8 +144,11 @@
   <script src="components/appwrite.config.js"></script>
   <script src="components/appwriteClient.js"></script>
   <script src="components/data.js"></script>
+  <script src="components/planning-catalog.js"></script>
   <script src="components/dispatch.js"></script>
+  <script src="components/dashboard-data.js"></script>
   <script src="components/icons.js"></script>
+  <script type="text/babel" src="components/BrandLogo.jsx"></script>
   <script type="text/babel" src="components/DispatchView.jsx"></script>
   <script type="text/babel" src="components/Login.jsx"></script>
   <script type="text/babel" src="components/Sidebar.jsx"></script>

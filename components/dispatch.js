@@ -1,6 +1,6 @@
 (function (root) {
   "use strict";
-  const KEY = "treeline_dispatch_v1";
+  const KEY = "treeline_public_dispatch_v1";
   const clone = value => JSON.parse(JSON.stringify(value));
   const empty = () => ({ schema: 1, days: {}, receipts: {} });
   const localDate = (offset = 0, now = new Date()) => {
@@ -19,6 +19,21 @@
   const strings = value => Array.isArray(value) && value.every(item => typeof item === "string");
   const entryShape = entry => record(entry) && ["id", "site", "address", "start", "end", "orderId", "meeting", "notes", "task"].every(key => typeof entry[key] === "string") && ["employeeIds", "vehicleIds", "equipmentIds"].every(key => strings(entry[key]));
   const snapshotShape = row => entryShape(row) && ["employees", "vehicles", "equipment"].every(key => Array.isArray(row[key]) && row[key].every(item => record(item) && typeof item.id === "string" && typeof item.name === "string"));
+
+  const normalizeSearch = value => String(value || "").toLocaleLowerCase("de-DE").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss");
+  function matchesSearch(record, query) {
+    const haystack = normalizeSearch([record.name, record.title, record.id, record.plate, record.city, record.street, record.client, record.team].filter(Boolean).join(" "));
+    return normalizeSearch(query).trim().split(/\s+/).every(word => haystack.includes(word));
+  }
+  function applyOrder(entry, order) {
+    return { ...entry, orderId: order.id, site: order.title,
+      address: [order.street, order.city].filter(Boolean).join(", "), task: order.description || "",
+      start: order.startTime || entry.start, employeeIds: [...(order.crewIds || [])],
+      vehicleIds: [...(order.vehicleIds || [])], equipmentIds: [...(order.equipmentIds || [])] };
+  }
+  function resourceBookings(entries, entry, field, id) {
+    return entries.filter(other => other.id !== entry.id && other[field]?.includes(id) && entry.start < other.end && other.start < entry.end);
+  }
 
   function validate(entries, data) {
     const issues = [];
@@ -138,7 +153,7 @@
       },
     };
   }
-  const api = { KEY, localDate, validDate, blankDay, latest, dirty, employees, validate, createRepository };
+  const api = { KEY, localDate, validDate, blankDay, latest, dirty, employees, matchesSearch, applyOrder, resourceBookings, validate, createRepository };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.Dispatch = api;

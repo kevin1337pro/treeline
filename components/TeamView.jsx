@@ -160,7 +160,7 @@ function TeamView() {
         <div style={tmStyles.overlay} onClick={() => setShowInvite(false)}>
           <div style={tmStyles.modal} onClick={e => e.stopPropagation()}>
             <div style={tmStyles.modalTitle}>Nutzer einladen</div>
-            {[["Name","text","Max Mustermann"],["E-Mail","email","m.mustermann@enbergs.de"]].map(([label,type,ph]) => (
+            {[["Name","text","Max Mustermann"],["E-Mail","email","m.mustermann@example.invalid"]].map(([label,type,ph]) => (
               <div key={label} style={{ marginBottom:12 }}>
                 <div style={tmStyles.formLabel}>{label}</div>
                 <input type={type} style={tmStyles.formInput} placeholder={ph}
