@@ -1,4 +1,4 @@
-function TreesView({ selectedTreeId, onSelectTree }) {
+function TreesView({ currentUser, selectedTreeId, onSelectTree }) {
   const { trees, measures, statusColors, measureTypes } = MOCK_DATA;
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -93,7 +93,6 @@ function TreesView({ selectedTreeId, onSelectTree }) {
       notes: form.notes.trim(),
       measuresIds: [],
       images: [],
-      createdAt: new Date().toISOString().slice(0,10),
     };
   }
 
@@ -123,7 +122,7 @@ function TreesView({ selectedTreeId, onSelectTree }) {
   async function addTree() {
     if (!newTree.name.trim()) return;
     const newId = `TRE-${new Date().getFullYear()}-${String(trees.length+1).padStart(3,"0")}`;
-    const tree = treeFromForm(newTree, newId);
+    const tree = { ...treeFromForm(newTree, newId), ...treeStamp(currentUser,true) };
     MOCK_DATA.trees.push(tree);
     persistTree(tree);
     setNewTree(createTreeForm());
@@ -133,62 +132,20 @@ function TreesView({ selectedTreeId, onSelectTree }) {
 
   function saveEdit() {
     if (!selectedTree || !editTree.name.trim()) return;
+    const previous = createTreeForm(selectedTree);
+    if (Object.keys(previous).every(key => String(previous[key]) === String(editTree[key]))) { setEditing(false); return; }
     const updated = {
       ...selectedTree,
       ...treeFromForm(editTree, selectedTree.id),
       measuresIds: selectedTree.measuresIds || [],
       images: selectedTree.images || [],
-      createdAt: selectedTree.createdAt || new Date().toISOString().slice(0,10),
+      ...treeStamp(currentUser,false),
     };
     Object.assign(selectedTree, updated);
     persistTree(selectedTree);
     setEditing(false);
   }
 
-  function TreeForm({ value, onChange }) {
-    const set = (key, val) => onChange({ ...value, [key]: val });
-    const setName = val => {
-      const latin = window.TREELINE_SPECIES?.getLatinName(val) || "";
-      const previousLatin = window.TREELINE_SPECIES?.getLatinName(value.name) || "";
-      onChange({
-        ...value,
-        name: val,
-        species: latin && (!value.species || value.species === previousLatin) ? latin : value.species,
-      });
-    };
-    return (
-      <div style={tvStyles.formGrid}>
-        <Field label="Name / Baumart" required>
-          <input style={tvStyles.fInput} value={value.name} onChange={e=>setName(e.target.value)}
-            list="treeline-tree-species" placeholder="z.B. Stieleiche"/>
-          <datalist id="treeline-tree-species">
-            {(window.TREELINE_TREE_SPECIES || []).map(item => <option key={item.name} value={item.name} />)}
-          </datalist>
-        </Field>
-        <Field label="Lateinische Art"><input style={tvStyles.fInput} value={value.species} onChange={e=>set("species", e.target.value)} placeholder="Quercus robur"/></Field>
-        <Field label="Standort" wide><input style={tvStyles.fInput} value={value.standort} onChange={e=>set("standort", e.target.value)} placeholder="Adresse oder Standortbeschreibung"/></Field>
-        <Field label="Status"><select style={tvStyles.fInput} value={value.status} onChange={e=>set("status", e.target.value)}>{Object.entries(statusLabel).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></Field>
-        <Field label="Eigentümer"><input style={tvStyles.fInput} value={value.owner} onChange={e=>set("owner", e.target.value)} placeholder="Eigentümer / Auftraggeber"/></Field>
-        <Field label="Zuständig"><select style={tvStyles.fInput} value={value.assignedTo} onChange={e=>set("assignedTo", e.target.value)}><option value="">Nicht zugewiesen</option>{MOCK_DATA.users.filter(u=>u.role!=="client").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></Field>
-        <Field label="Breitengrad"><input style={tvStyles.fInput} type="number" step="0.00001" value={value.lat} onChange={e=>set("lat", e.target.value)}/></Field>
-        <Field label="Längengrad"><input style={tvStyles.fInput} type="number" step="0.00001" value={value.lng} onChange={e=>set("lng", e.target.value)}/></Field>
-        <Field label="Höhe (m)"><input style={tvStyles.fInput} type="number" min="0" step="0.1" value={value.height} onChange={e=>set("height", e.target.value)}/></Field>
-        <Field label="Stamm-Ø (cm)"><input style={tvStyles.fInput} type="number" min="0" step="1" value={value.trunkDiam} onChange={e=>set("trunkDiam", e.target.value)}/></Field>
-        <Field label="Kronen-Ø (m)"><input style={tvStyles.fInput} type="number" min="0" step="0.1" value={value.crownDiam} onChange={e=>set("crownDiam", e.target.value)}/></Field>
-        <Field label="Alter (Jahre)"><input style={tvStyles.fInput} type="number" min="0" step="1" value={value.age} onChange={e=>set("age", e.target.value)}/></Field>
-        <Field label="VTA / Bewertung"><input style={tvStyles.fInput} value={value.vta} onChange={e=>set("vta", e.target.value)} placeholder="Ausstehend, VTA Stufe 1 ..."/></Field>
-        <Field label="Zertifiziert"><label style={tvStyles.checkLabel}><input type="checkbox" checked={value.certified} onChange={e=>set("certified", e.target.checked)}/> Zertifizierung vorhanden</label></Field>
-        <Field label="Zertifizierungsdatum"><input style={tvStyles.fInput} type="date" value={value.certDate} onChange={e=>set("certDate", e.target.value)} disabled={!value.certified}/></Field>
-        <Field label="Gutachter"><input style={tvStyles.fInput} value={value.certifier} onChange={e=>set("certifier", e.target.value)} disabled={!value.certified}/></Field>
-        <Field label="Tags" wide><input style={tvStyles.fInput} value={value.tags} onChange={e=>set("tags", e.target.value)} placeholder="Kommagetrennt, z.B. Monitoring, Totholz"/></Field>
-        <Field label="Notizen" wide><textarea style={{...tvStyles.fInput,minHeight:84,resize:"vertical"}} value={value.notes} onChange={e=>set("notes", e.target.value)} placeholder="Kontrollhinweise, Schäden, Maßnahmenbedarf"/></Field>
-      </div>
-    );
-  }
-
-  function Field({ label, required, wide, children }) {
-    return <div style={wide ? tvStyles.formWide : null}><div style={tvStyles.fLabel}>{label}{required ? " *" : ""}</div>{children}</div>;
-  }
 
   return (
     <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
@@ -238,6 +195,7 @@ function TreesView({ selectedTreeId, onSelectTree }) {
               <div style={tvStyles.detailId}>{selectedTree.id}</div>
               <div style={tvStyles.detailName}>{selectedTree.name}</div>
               <div style={tvStyles.detailSpecies}>{selectedTree.species}</div>
+              <TreeAudit tree={selectedTree}/>
             </div>
             <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap",justifyContent:"flex-end"}}>
               {!editing && <button style={tvStyles.smallBtn} onClick={startEdit}>Bearbeiten</button>}
@@ -268,7 +226,7 @@ function TreesView({ selectedTreeId, onSelectTree }) {
             {activeTab==="info" && editing && (
               <div>
                 <div style={tvStyles.section}>Baumdaten bearbeiten</div>
-                <TreeForm value={editTree} onChange={setEditTree} />
+                <CatalogTreeForm value={editTree} onChange={setEditTree} statusLabel={statusLabel}/>
               </div>
             )}
             {activeTab==="info" && !editing && (
@@ -452,7 +410,7 @@ function TreesView({ selectedTreeId, onSelectTree }) {
         <div style={tvStyles.modalOverlay} onClick={()=>setShowAddForm(false)}>
           <div style={tvStyles.modal} onClick={e=>e.stopPropagation()}>
             <div style={tvStyles.modalTitle}>Neuen Baum erfassen</div>
-            <TreeForm value={newTree} onChange={setNewTree} />
+            <CatalogTreeForm value={newTree} onChange={setNewTree} statusLabel={statusLabel}/>
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button style={tvStyles.cancelBtn} onClick={()=>setShowAddForm(false)}>Abbrechen</button>
               <button style={tvStyles.primaryBtn} onClick={addTree} disabled={!newTree.name.trim()}>Baum anlegen</button>
@@ -462,6 +420,52 @@ function TreesView({ selectedTreeId, onSelectTree }) {
       )}
     </div>
   );
+}
+
+
+function CatalogTreeForm({ value, onChange, statusLabel }) {
+  const set = (key, val) => onChange({ ...value, [key]: val });
+  const setName = val => {
+    const latin = window.TREELINE_SPECIES?.getLatinName(val) || "";
+    const previousLatin = window.TREELINE_SPECIES?.getLatinName(value.name) || "";
+    onChange({
+      ...value,
+      name: val,
+      species: latin && (!value.species || value.species === previousLatin) ? latin : value.species,
+    });
+  };
+  return (
+    <div style={tvStyles.formGrid}>
+      <TreeInputField label="Name / Baumart" required>
+        <input style={tvStyles.fInput} value={value.name} onChange={e=>setName(e.target.value)}
+          list="treeline-tree-species" placeholder="z.B. Stieleiche"/>
+        <datalist id="treeline-tree-species">
+          {(window.TREELINE_TREE_SPECIES || []).map(item => <option key={item.name} value={item.name} />)}
+        </datalist>
+      </TreeInputField>
+      <TreeInputField label="Lateinische Art"><input style={tvStyles.fInput} value={value.species} onChange={e=>set("species", e.target.value)} placeholder="Quercus robur"/></TreeInputField>
+      <TreeInputField label="Standort" wide><input style={tvStyles.fInput} value={value.standort} onChange={e=>set("standort", e.target.value)} placeholder="Adresse oder Standortbeschreibung"/></TreeInputField>
+      <TreeInputField label="Status"><select style={tvStyles.fInput} value={value.status} onChange={e=>set("status", e.target.value)}>{Object.entries(statusLabel).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></TreeInputField>
+      <TreeInputField label="Eigentümer"><input style={tvStyles.fInput} value={value.owner} onChange={e=>set("owner", e.target.value)} placeholder="Eigentümer / Auftraggeber"/></TreeInputField>
+      <TreeInputField label="Zuständig"><select style={tvStyles.fInput} value={value.assignedTo} onChange={e=>set("assignedTo", e.target.value)}><option value="">Nicht zugewiesen</option>{MOCK_DATA.users.filter(u=>u.role!=="client").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></TreeInputField>
+      <TreeInputField label="Breitengrad"><input style={tvStyles.fInput} type="number" step="0.00001" value={value.lat} onChange={e=>set("lat", e.target.value)}/></TreeInputField>
+      <TreeInputField label="Längengrad"><input style={tvStyles.fInput} type="number" step="0.00001" value={value.lng} onChange={e=>set("lng", e.target.value)}/></TreeInputField>
+      <TreeInputField label="Höhe (m)"><input style={tvStyles.fInput} type="number" min="0" step="0.1" value={value.height} onChange={e=>set("height", e.target.value)}/></TreeInputField>
+      <TreeInputField label="Stamm-Ø (cm)"><input style={tvStyles.fInput} type="number" min="0" step="1" value={value.trunkDiam} onChange={e=>set("trunkDiam", e.target.value)}/></TreeInputField>
+      <TreeInputField label="Kronen-Ø (m)"><input style={tvStyles.fInput} type="number" min="0" step="0.1" value={value.crownDiam} onChange={e=>set("crownDiam", e.target.value)}/></TreeInputField>
+      <TreeInputField label="Alter (Jahre)"><input style={tvStyles.fInput} type="number" min="0" step="1" value={value.age} onChange={e=>set("age", e.target.value)}/></TreeInputField>
+      <TreeInputField label="VTA / Bewertung"><input style={tvStyles.fInput} value={value.vta} onChange={e=>set("vta", e.target.value)} placeholder="Ausstehend, VTA Stufe 1 ..."/></TreeInputField>
+      <TreeInputField label="Zertifiziert"><label style={tvStyles.checkLabel}><input type="checkbox" checked={value.certified} onChange={e=>set("certified", e.target.checked)}/> Zertifizierung vorhanden</label></TreeInputField>
+      <TreeInputField label="Zertifizierungsdatum"><input style={tvStyles.fInput} type="date" value={value.certDate} onChange={e=>set("certDate", e.target.value)} disabled={!value.certified}/></TreeInputField>
+      <TreeInputField label="Gutachter"><input style={tvStyles.fInput} value={value.certifier} onChange={e=>set("certifier", e.target.value)} disabled={!value.certified}/></TreeInputField>
+      <TreeInputField label="Tags" wide><input style={tvStyles.fInput} value={value.tags} onChange={e=>set("tags", e.target.value)} placeholder="Kommagetrennt, z.B. Monitoring, Totholz"/></TreeInputField>
+      <TreeInputField label="Notizen" wide><textarea style={{...tvStyles.fInput,minHeight:84,resize:"vertical"}} value={value.notes} onChange={e=>set("notes", e.target.value)} placeholder="Kontrollhinweise, Schäden, Maßnahmenbedarf"/></TreeInputField>
+    </div>
+  );
+}
+
+function TreeInputField({ label, required, wide, children }) {
+  return <div style={wide ? tvStyles.formWide : null}><div style={tvStyles.fLabel}>{label}{required ? " *" : ""}</div>{children}</div>;
 }
 
 const tvStyles = {

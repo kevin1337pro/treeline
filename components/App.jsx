@@ -102,7 +102,7 @@ function App() {
   const pageTitle = {
     dashboard:"Übersicht", orders:"Aufträge", map:"Karte", trees:"Bäume",
     measures:"Maßnahmen", pflanzung:"Neupflanzungen", team:"Team", upload:"Medien",
-    dispatch:"Einsatzplanung", inbox:"Postfach",
+    dispatch:"Einsatzplanung", inbox:"Postfach", community:"Teamfunk",
   };
 
   const user = currentUser || MOCK_DATA.currentUser;
@@ -150,8 +150,9 @@ function App() {
         <div style={{ flex:1, overflowY: page==="map"||page==="trees"||page==="pflanzung" ? "hidden" : "auto" }}>
           {page==="dashboard" && <Dashboard currentUser={user} onNav={handleNav} onSelectTree={handleSelectTree} onOpenDispatch={handleOpenDispatch} onOpenOrderMap={handleOpenOrderMap}/>}
           {page==="orders"    && <AuftraegeView selectedOrderId={selectedOrderId} onSelectOrder={handleSelectOrder} onOpenOrderMap={handleOpenOrderMap} onSelectTree={handleSelectTree}/>}
-          {page==="map"       && <MapView selectedOrderId={selectedOrderId} onSelectOrder={handleSelectOrder} onSelectTree={handleSelectTree}/>}
-          {page==="trees"     && <TreesView selectedTreeId={selectedTreeId} onSelectTree={setSelectedTreeId}/>}
+          {page==="map"       && <MapView currentUser={user} selectedOrderId={selectedOrderId} onSelectOrder={handleSelectOrder} onSelectTree={handleSelectTree}/>}
+          {page==="trees"     && <TreesView currentUser={user} selectedTreeId={selectedTreeId} onSelectTree={setSelectedTreeId}/>}
+          {page==="community" && user.role !== "client" && <DemoTeamFeed key={user.id} user={user}/>}
           {page==="measures"  && <MassnahmenView/>}
           {page==="pflanzung" && <PflanzungView/>}
           {page==="team"      && <TeamView/>}

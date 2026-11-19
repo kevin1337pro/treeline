@@ -6,7 +6,7 @@ Die Website ist eine oeffentlich erreichbare Demo, kein produktives Mitarbeiterp
 ## Naechster Pilot
 
 1. **Büro, Handy und Wand-iPad: Live-Abnahme.** Der [Appwrite-Betriebszugang](BETRIEBSZUGANG.md)
-   ist implementiert. Nach Projektaktivierung und Kontozuordnung einen Tagesplan mit zwei Einsätzen freigeben,
+   ist in Appwrite aktiv und mit temporären Rollen-Konten geprüft. Nach Zuordnung der Betriebskonten einen Tagesplan mit zwei Einsätzen freigeben,
    eine Mannschaft umteilen und die neue Version auf beiden Geräten anzeigen.
    Das Büro sieht, wer die Änderung bestätigt hat. Das Display erhält ein eigenes Lesekonto.
 2. **Fahrer je Fahrzeug einteilen.** Für Hubsteiger und Gespann jeweils Fahrer,

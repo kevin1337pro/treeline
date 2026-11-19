@@ -76,6 +76,7 @@ test("placing a tree creates a visible feature with Latin species and closes the
   await page.getByRole("button", { name: "Baum anlegen", exact: true }).click();
   await expect(page.getByRole("region", { name: "Neuer Baum", exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Baumdetails" })).toContainText("Stileiche");
+  await expect(page.getByRole("region", { name: "Baumdetails" }).locator(".tree-audit")).toContainText("Angelegt: Mara");
   expect(await page.evaluate(() => MOCK_DATA.trees.length)).toBe(count + 1);
   await expect.poll(() => page.evaluate(() => testMap.getStyle().sources["treeline-trees"].data.features.length)).toBe(count + 1);
   expect(await page.evaluate(() => MOCK_DATA.orders[0].treeIds.includes(MOCK_DATA.trees.at(-1).id))).toBe(true);

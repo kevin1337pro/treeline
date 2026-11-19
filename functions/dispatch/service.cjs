@@ -8,13 +8,14 @@ const desc = key => q("orderDesc", key);
 const head = q("limit", null, [1]);
 const cleanId = id => typeof id === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(id);
 
-async function dispatch(D, db, accountId, input) {
+async function dispatch(D, db, accountId, input, team) {
   if (!accountId) fail(401, "Bitte anmelden.");
   const profile = await db.get("profiles", accountId);
   if (!profile || !["office", "employee", "display"].includes(profile.role)) fail(403, "Für dieses Konto ist kein Betriebszugang zugeordnet.");
   const { role, profileId, name } = profile;
   const { action, date } = input;
   if (action === "profile") return { role, id: profileId, name };
+  if (typeof action === "string" && /^(team|tree):/.test(action) && team) return team.run(db, { role, id: profileId, name }, input);
   const allowed = { office: ["office", "draft", "publish", "board"], employee: ["inbox", "confirm"], display: ["board"] };
   if (!allowed[role].includes(action)) fail(403, "Diese Aktion ist für dieses Konto nicht freigegeben.");
   const unpack = doc => doc && JSON.parse(doc.payload);

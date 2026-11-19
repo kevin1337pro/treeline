@@ -1,0 +1,25 @@
+const {test,expect}=require("@playwright/test");
+test("Mobiler Teamfunk: Beitrag, Like, Kommentar, Bearbeiten und erneutes Öffnen",async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto("/treeline.html");
+  await page.getByRole("button",{name:/Als Mara anmelden/}).click();
+  await page.getByRole("button",{name:"Navigation öffnen"}).click();
+  await page.getByRole("button",{name:"Teamfunk",exact:true}).click();
+  await page.getByLabel(/Beitrag von/).fill("Morgen am Nordtor");
+  await page.getByLabel("Thema").selectOption("Einsatz");
+  await page.getByRole("button",{name:"Posten",exact:true}).click();
+  const post=page.locator("article").filter({hasText:"Morgen am Nordtor"});
+  await post.getByRole("button",{name:"Gefällt mir",exact:true}).click();
+  await expect(post.getByRole("button",{name:"Like zurücknehmen"})).toHaveText("1");
+  await post.getByRole("button",{name:"0 Kommentare"}).click();
+  await post.getByLabel("Kommentar",{exact:true}).fill("Bin dabei.");
+  await post.getByRole("button",{name:"Kommentieren"}).click();
+  await expect(post.getByText("Bin dabei.")).toBeVisible();
+  await post.locator(".tf-reply").getByRole("button",{name:/Text bearbeiten/}).click();
+  await post.getByRole("textbox",{name:"Text bearbeiten"}).fill("Bestätigt.");
+  await post.getByRole("button",{name:"Speichern"}).click();
+  await expect(post.locator(".tf-reply .tf-text")).toHaveText("Bestätigt.");
+  await page.screenshot({path:test.info().outputPath("teamfunk-mobil.png")});
+  await page.reload();await expect(post.getByRole("button",{name:"1 Kommentar"})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

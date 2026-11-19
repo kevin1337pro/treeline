@@ -16,8 +16,8 @@ Postfaecher mit Lesebestaetigung sowie Aushang mit Druck und Seitenwechsel.
 Prioritaeten fuer die naechsten Iterationen:
 
 1. **P0: Betriebszugang in der Cloud abnehmen.** Private Datenbank, Freigaben,
-   persönliche Bestätigungen und Display-Abruf sind implementiert. Projekt
-   reaktivieren, Schema bereitstellen, Pilotkonten zuordnen und auf echten
+   persönliche Bestätigungen und Display-Abruf sind in Appwrite aktiv. Persönliche
+   Pilotkonten zuordnen und auf den betrieblichen
    Geräten testen. [Einrichtung und Abnahme](docs/BETRIEBSZUGANG.md).
 2. **P1: Aussendienst offline.** Tagespaket aus Einsaetzen, Baumpositionen, Formularen
    und Medien lokal vorhalten. Warteschlange fuer Aenderungen mit sichtbarem

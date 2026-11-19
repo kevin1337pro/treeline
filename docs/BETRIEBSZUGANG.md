@@ -17,7 +17,7 @@ keine automatische Übernahme der lokalen Vorschau in den Betrieb.
    und Zeilen lesen/schreiben. Keine Schlüssel in Frontend oder Geräte-URLs.
 3. Mit Node 22+ und `tar` im Projektordner `npm run appwrite:dispatch` ausführen.
    Das Skript wartet auf Indizes und die aktive Funktionsbereitstellung. Es nutzt
-   eine separate Datenbank `treeline_dispatch` und verändert keine vorhandenen
+   private Sammlungen mit dem Präfix `ops_` in der Datenbank `treeline` und verändert keine vorhandenen
    Aufträge oder Demo-Daten. Nicht das alte `appwrite:setup` dafür verwenden.
 4. In der Appwrite-Konsole Konten für Büro, persönliche Handys und ein separates
    Display anlegen. Keine gemeinsame Anmeldung für Mitarbeiter. Beispiel für die
@@ -38,6 +38,16 @@ Zuordnung entfernen. Keine Anmeldedaten über öffentliche Links verteilen.
 
 ## Tagesgeschäft
 
+- **Teamfunk:** Büro und Mitarbeiter können Beiträge als Allgemein, Einsatz
+  oder Frage posten, in einem Thread kommentieren, eigene Texte bearbeiten und
+  Likes setzen oder zurücknehmen. Die offene Unterhaltung aktualisiert sich
+  alle 15 Sekunden. Das Displaykonto erhält keinen Zugriff. Die Demo verwendet
+  einen separaten lokalen Beispieldialog.
+- **Bäume:** Im Betriebskataster stammen Autor und Bearbeiter vom angemeldeten
+  Konto; Datum und Uhrzeit kommen aus Appwrite. Die Demo zeigt die Angaben
+  auch in der Karte und nennt dort das gewählte Beispielprofil. Alte Einträge
+  ohne Angaben werden nicht nachträglich einer Person zugeschrieben.
+
 - **Büro:** Tag und Einsätze bearbeiten, als Entwurf speichern, dann freigeben.
   Ein bereits freigegebener Stand bleibt sichtbar, bis das Büro die Änderungen
   erneut freigibt. Gleichzeitiges Speichern desselben Ausgangsstands führt zu
@@ -55,7 +65,8 @@ Zuordnung entfernen. Keine Anmeldedaten über öffentliche Links verteilen.
 
 ## Daten und Abnahme
 
-Die Sammlungen `profiles`, `versions` und `receipts` sind für Browser nicht
+Die Sammlungen `ops_profiles`, `ops_versions`, `ops_receipts`, `ops_community`
+und `ops_trees` sind für Browser nicht
 direkt les- oder beschreibbar. Nur die Funktion `dispatch_gateway` prüft die
 Appwrite-Sitzung, lädt die zugeordnete Rolle und liefert den passenden
 Ausschnitt. Entwurf oder Freigabe werden jeweils als ein unveränderliches

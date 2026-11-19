@@ -2,6 +2,7 @@ const { icons } = require("lucide");
 const { writeFileSync, readFileSync } = require("node:fs");
 const names = ["CalendarDays", "Inbox", "Monitor", "Plus", "Pencil", "Trash2", "X", "ChevronLeft", "ChevronRight", "ChevronDown", "Send", "Printer", "Maximize", "ArrowLeft", "MapPin", "Check", "Pause", "Play", "Bell", "TreePine", "ClipboardList", "TriangleAlert", "ArrowRight", "Users", "Search", "Layers", "LocateFixed", "MousePointer2", "Route", "Undo2", "Save", "Minimize", "RotateCw"];
 const reactAttributes = attrs => Object.fromEntries(Object.entries(attrs).map(([key, value]) => [key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), value]));
+names.push("MessagesSquare", "MessageCircle", "ThumbsUp", "Radio");
 const selected = Object.fromEntries(names.map(name => {
   const [tag, attrs, children] = icons[name];
   return [name, [tag, reactAttributes(attrs), children.map(([child, props]) => [child, reactAttributes(props)])]];

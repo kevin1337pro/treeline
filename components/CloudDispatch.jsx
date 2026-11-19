@@ -5,6 +5,7 @@ function CloudWorkplace({ user, onExit, onDenied }) {
   const fixed = Dispatch.validDate(params.get("date") || "") ? params.get("date") : null;
   const [date, setDate] = React.useState(fixed || Dispatch.localDate(isOffice ? 1 : 0));
   const [officeBoard, setOfficeBoard] = React.useState(false);
+  const [section, setSection] = React.useState("plan");
   const action = user.role === "display" || officeBoard ? "board" : isOffice ? "office" : "inbox";
   const key = action + ":" + date;
   const [result, setResult] = React.useState(null);
@@ -12,6 +13,7 @@ function CloudWorkplace({ user, onExit, onDenied }) {
   const [retry, setRetry] = React.useState(0);
   const refresh = React.useRef(null);
   React.useEffect(() => {
+    if (section !== "plan") return;
     let live = true, sequence = 0;
     async function fetchPlan() {
       const tick = ++sequence;
@@ -32,7 +34,7 @@ function CloudWorkplace({ user, onExit, onDenied }) {
     window.addEventListener("focus", visible);
     window.addEventListener("online", visible);
     return () => { live = false; clearInterval(timer); document.removeEventListener("visibilitychange", visible); window.removeEventListener("focus", visible); window.removeEventListener("online", visible); };
-  }, [key, retry]);
+  }, [key, retry, section]);
   const data = result?.key === key ? result.data : null;
   const days = {};
   if (data?.day) days[date] = data.day;
@@ -59,7 +61,8 @@ function CloudWorkplace({ user, onExit, onDenied }) {
   const value = { state: { days, receipts: data?.receipts || {} }, date, setDate, error, loading: !data, messages: data?.messages || [], catalog, repo };
   return <DispatchCloud.Provider value={value}><div className="dp-cloud-shell">
     <header className="dp-cloud-header"><BrandLogo variant="stacked"/><span>{user.name}</span><button className="dp-button" onClick={onExit}>Abmelden</button></header>
-    {!data ? <main className="dp-page"><p role={error ? "alert" : "status"}>{error || "Einsatzdaten werden geladen …"}</p>{error && <button className="dp-button" onClick={() => setRetry(v => v + 1)}>Erneut versuchen</button>}</main> :
+    {user.role !== "display" && <nav className="tf-nav" aria-label="Betriebsbereiche">{[["plan",isOffice ? "Einsatzplanung" : "Postfach",isOffice ? "CalendarDays" : "Inbox"],["community","Teamfunk","MessagesSquare"],["trees","Bäume","TreePine"]].map(([id,label,icon]) => <button key={id} aria-current={id === section ? "page" : undefined} onClick={() => setSection(id)}><DispatchIcon name={icon}/>{label}</button>)}</nav>}
+    {section === "community" ? <TeamFeed user={user} run={CloudDispatchAPI.run} onDenied={onDenied}/> : section === "trees" ? <WorkTrees run={CloudDispatchAPI.run} onDenied={onDenied}/> : !data ? <main className="dp-page"><p role={error ? "alert" : "status"}>{error || "Einsatzdaten werden geladen …"}</p>{error && <button className="dp-button" onClick={() => setRetry(v => v + 1)}>Erneut versuchen</button>}</main> :
       action === "board" ? <DispatchBoard initialDate={officeBoard ? date : fixed} onBack={officeBoard ? () => setOfficeBoard(false) : onExit}/> :
       isOffice ? <DispatchView currentUser={{ ...user, role: "admin" }} onBoard={() => setOfficeBoard(true)}/> : <DispatchInbox currentUser={user}/>}
   </div></DispatchCloud.Provider>;

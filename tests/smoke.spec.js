@@ -22,7 +22,7 @@ test("login and primary navigation render without browser errors", async ({ page
   await expect(page.getByText(/Willkommen, Mara/)).toBeVisible();
 
   for (const label of ["Aufträge", "Karte", "Bäume", "Maßnahmen", "Neupflanzungen", "Team", "Medien"]) {
-    await page.getByRole("button", { name: label }).first().click();
+    await page.getByRole("button", { name: label, exact:true }).first().click();
     await expect(page.getByText(label).first()).toBeVisible();
   }
 
@@ -107,7 +107,7 @@ test("mobile order and map controls stay reachable", async ({ page }) => {
 
 test("team invite adds and selects a user", async ({ page }) => {
   await page.getByRole("button", { name: /Als Mara anmelden/ }).click();
-  await page.getByRole("button", { name: "Team" }).first().click();
+  await page.getByRole("button", { name: "Team", exact:true }).first().click();
   await page.getByRole("button", { name: "+ Einladen" }).click();
   await page.locator("input[placeholder='Max Mustermann']").fill("Laura Test");
   await page.locator("input[placeholder='m.mustermann@example.invalid']").fill("laura.test@example.com");
@@ -140,4 +140,17 @@ test("tree form auto-fills latin species", async ({ page }) => {
   await expect(latin).toHaveValue("Quercus robur");
   await page.locator("input[placeholder='z.B. Stieleiche']").fill("Traubeneiche");
   await expect(latin).toHaveValue("Quercus petraea");
+  await page.getByRole("button",{name:"Baum anlegen",exact:true}).click();
+  await expect(page.locator(".tree-audit")).toContainText("Angelegt: Mara");
+  const initial=await page.evaluate(()=>({...MOCK_DATA.trees.at(-1)}));
+  await page.getByRole("button",{name:"Bearbeiten",exact:true}).click();
+  const notes=page.getByPlaceholder("Kontrollhinweise, Schäden, Maßnahmenbedarf");
+  await notes.pressSequentially("Nachkontrolle");
+  await expect(notes).toHaveValue("Nachkontrolle");
+  await page.getByRole("button",{name:"Speichern",exact:true}).click();
+  await page.reload();
+  const updated=await page.evaluate(()=>MOCK_DATA.trees.at(-1));
+  expect(updated.createdAt).toEqual(initial.createdAt);
+  expect(updated.notes).toBe("Nachkontrolle");
+  expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(initial.updatedAt));
 });

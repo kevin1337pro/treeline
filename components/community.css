@@ -1,0 +1,43 @@
+.tree-audit { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 7px; color: #56665e; font-size: 11px; font-weight: 400; line-height: 1.55; overflow-wrap: anywhere; }
+.tf-page { width: min(100%, 760px); margin: 0 auto; padding: 20px 22px 64px; color: #21302a; line-height: 1.4; }
+.tf-nav, .tf-heading, .tf-author, .tf-compose-foot, .tf-tools, .tf-subhead, .tf-tree { display: flex; align-items: center; gap: 10px; }
+.tf-nav { background: white; border-bottom: 1px solid #d6dfda; gap: 4px; padding: 0 12px; overflow-x: auto; }
+.tf-nav button,.tf-tools button,.tf-icon { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 5px 10px; background: transparent; color: #45584e; border: 0; font: inherit; font-size: 14px; cursor: pointer; }
+.tf-nav button { border-bottom: 3px solid transparent; }
+.tf-nav button[aria-current="page"] { border-color: #22754e; color: #185838; font-weight: 650; }
+.tf-heading { padding-bottom: 18px; border-bottom: 2px solid #225b48; margin-bottom: 16px; }
+.tf-heading h1 { font-size: 27px; line-height: 1.15; }
+.tf-heading p,.tf-author small { font-size: 12px; color: #53665e; }
+.tf-mark,.tf-avatar { flex: none; display: grid; place-items: center; }
+.tf-mark { height: 46px; width: 46px; border-radius: 7px; color: white; background: #225b48; }
+.tf-avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; }
+.tone-0 { color: #15574e; background: #daeee1; } .tone-1 { color: #705014; background: #fae8ba; }
+.tone-2 { color: #3a5387; background: #e1ebfa; } .tone-3 { color: #7b4354; background: #f6e4eb; }
+.tf-heading .tf-icon,.tf-author .tf-icon { margin-left: auto; }
+.tf-icon { border-radius: 5px; width: 40px; flex: none; }
+.tf-compose,.tf-post { padding: 14px 16px; background: white; border: 1px solid #ced9d2; border-radius: 7px; }
+.tf-compose { border-top: 3px solid #40755a; }
+.tf-page textarea,.tf-page select,.tf-search { max-width: 100%; padding: 9px; color: inherit; font: inherit; font-size: 16px; border: 1px solid #bdcbc3; border-radius: 5px; background: white; }
+.tf-page textarea { width: 100%; display: block; resize: vertical; min-height: 56px; margin: 9px 0; }
+.tf-compose-foot,.tf-subhead,.tf-tree { justify-content: space-between; }
+.tf-subhead { margin: 15px 0 4px; }
+.tf-page h2 { font-size: 18px; }
+.tf-post { margin-bottom: 9px; overflow-wrap: anywhere; }
+.tf-author strong,.tf-author small { display: block; }
+.tf-author strong { font-size: 14px; }
+.tf-topic { float: right; margin: 5px 0 4px 8px; padding: 3px 7px; font-size: 11px; color: #47594f; background: #edf2ef; border-radius: 4px; }
+.tf-topic[data-topic="Frage"] { color: #705014; background: #fff1c9; } .tf-topic[data-topic="Einsatz"] { color: #1f5580; background: #e5eefb; }
+.tf-text { margin: 10px 0; white-space: pre-wrap; font-size: 15px; }
+.tf-tools { border-top: 1px solid #e3e9e5; gap: 4px; flex-wrap: wrap; }
+.tf-tools button[aria-pressed="true"] { color: #116244; background: #e4f3ea; }
+.tf-page button:hover:not(:disabled) { background-color: #e5eee8; color: #19382a; }
+.tf-replies { margin-top: 6px; padding-left: 12px; border-left: 3px solid #c9dacf; }
+.tf-reply { padding: 8px 0; border-bottom: 1px solid #e3e9e5; }
+.tf-replies form { padding: 10px 0; }
+.tf-replies label { font-weight: 600; font-size: 13px; }
+.tf-empty { padding: 20px 0; color: #56645e; }
+.tf-search { width: 100%; }
+.tf-tree { align-items: flex-start; border-bottom: 1px solid #ced9d2; padding: 16px 0; overflow-wrap: anywhere; }
+.tf-tree p { white-space: pre-wrap; }
+@media(max-width:600px) { .tf-page { padding: 14px 12px 50px; } .tf-nav { padding: 0 4px; } .tf-nav button { font-size: 13px; padding-inline: 6px; } .tf-nav button,.tf-tools button,.tf-icon { min-height: 44px; } .tf-compose,.tf-post { padding: 12px; } }
+@media print { .tf-nav { display: none; } }

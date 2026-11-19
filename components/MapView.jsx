@@ -1,4 +1,4 @@
-function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
+function MapView({ currentUser, selectedOrderId, onSelectOrder, onSelectTree }) {
   const mapRef = React.useRef(null);
   const mapboxMap = React.useRef(null);
   const latest = React.useRef({});
@@ -715,7 +715,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
       tags:newTreeData.tags.split(",").map(t => t.trim()).filter(Boolean),
       measuresIds:[],
       images:[],
-      createdAt:new Date().toISOString().slice(0, 10),
+      ...treeStamp(currentUser,true),
       orderId:newTreeData.orderId || null,
       routeSide:newTreeData.orderId ? newTreeData.routeSide : null,
       routeIndex:newTreeData.orderId ? Number(newTreeData.routeIndex) || nextRouteIndex(newTreeData.routeSide, newTreeData.orderId) : null,
@@ -960,6 +960,7 @@ function MapView({ selectedOrderId, onSelectOrder, onSelectTree }) {
             {selectedTree.orderId && <div style={mvStyles.orderChip}>{selectedTree.orderId} · {selectedTree.routeSide} #{selectedTree.routeIndex}</div>}
             <div style={mvStyles.section}>Standort</div>
             <div style={mvStyles.detail}>{selectedTree.standort}</div>
+            <TreeAudit tree={selectedTree}/>
             <details className="map-tree-details"><summary>Baumdaten</summary>
             <div style={mvStyles.grid2}>
               {[["Höhe",selectedTree.height+" m"],["Stamm-Ø",selectedTree.trunkDiam+" cm"],

@@ -18,6 +18,11 @@ mit Mehrfachauswahl, Vorbelegung und Belegungshinweisen. Die oeffentliche Demo n
 Der getrennte [Betriebszugang](docs/BETRIEBSZUGANG.md) unter
 `treeline.html?betrieb=1` nutzt Appwrite-Konten für Tagesplanfreigaben,
 persönliche Bestätigungen und die automatische Aktualisierung des Aushangs.
+
+Unter **Teamfunk** tauschen sich Büro und Mannschaft über Beiträge, Kommentare
+und Likes aus. Unter **Bäume** steht dezent, wer einen Baum angelegt oder zuletzt
+bearbeitet hat und wann. Die öffentliche Demo speichert ihre eigenen Beispieldaten
+lokal; private Gruppeninhalte und Betriebsbäume bleiben in Appwrite.
 [Priorisierte Erweiterungen und Vergleich mit QField, RIWA und Field Maps](ROADMAP.md).
 [Konkrete offene Aufgaben bis zum Produktivbetrieb](docs/OFFENE_AUFGABEN.md).
 
